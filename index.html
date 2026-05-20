@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LoopNote Brief Generator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #fff;
+      color: #1a1a2e;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 48px 20px 100px;
+    }
+
+    /* ── Header ── */
+    .header { margin-bottom: 32px; }
+
+    .header-eyebrow {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: #6366f1;
+      margin-bottom: 10px;
+    }
+
+    .header h1 {
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: -0.75px;
+      color: #0f172a;
+      line-height: 1.2;
+    }
+
+    .header p {
+      margin-top: 8px;
+      color: #64748b;
+      font-size: 15px;
+      max-width: 520px;
+    }
+
+    /* ── Section label ── */
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #94a3b8;
+      margin-bottom: 10px;
+    }
+
+    /* ── Warning banner ── */
+    .warning {
+      display: none;
+      background: #fffbeb;
+      border: 1px solid #fbbf24;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 14px;
+      color: #92400e;
+      margin-bottom: 24px;
+    }
+    .warning.show { display: block; }
+
+    /* ── API Key ── */
+    .api-key-wrap {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 36px;
+    }
+
+    .api-key-wrap label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: #64748b;
+      margin-bottom: 10px;
+    }
+
+    .api-key-wrap input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      font-size: 14px;
+      outline: none;
+      background: #fff;
+      font-family: 'SF Mono', 'Fira Code', 'Fira Mono', monospace;
+      color: #1e293b;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .api-key-wrap input:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+    }
+
+    .api-key-hint {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    /* ── Stats grid ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 36px;
+    }
+
+    .stat-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 18px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #94a3b8;
+      margin-bottom: 6px;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.5px;
+      line-height: 1;
+    }
+
+    .stat-meta {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 5px;
+    }
+
+    /* ── Creative selector ── */
+    .creative-selector { margin-bottom: 36px; }
+
+    .creative-table {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .creative-header {
+      display: grid;
+      grid-template-columns: 28px 1fr 68px 80px 60px;
+      gap: 12px;
+      padding: 10px 16px;
+      background: #f1f5f9;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #94a3b8;
+      align-items: center;
+    }
+
+    .creative-row {
+      display: grid;
+      grid-template-columns: 28px 1fr 68px 80px 60px;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid #f1f5f9;
+      align-items: center;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .creative-row:last-child { border-bottom: none; }
+    .creative-row:hover { background: #fafafa; }
+
+    .creative-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: #6366f1;
+    }
+
+    .creative-id-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 3px;
+      flex-wrap: wrap;
+    }
+
+    .creative-id {
+      font-size: 13px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    .badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 700;
+      letter-spacing: 0.1px;
+    }
+
+    .badge-meta     { background: #eff6ff; color: #2563eb; }
+    .badge-tiktok   { background: #fdf4ff; color: #9333ea; }
+    .badge-youtube  { background: #fef2f2; color: #dc2626; }
+    .badge-top      { background: #f0fdf4; color: #15803d; }
+
+    .creative-concept {
+      font-size: 12px;
+      color: #64748b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .metric-cell { text-align: right; }
+
+    .metric-main {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    .metric-unit {
+      font-size: 10px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .cpa-good { color: #16a34a; }
+    .cpa-bad  { color: #dc2626; }
+
+    /* ── Config ── */
+    .config-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .config-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #475569;
+      margin-bottom: 8px;
+    }
+
+    .field label .optional {
+      font-weight: 400;
+      text-transform: none;
+      letter-spacing: 0;
+      color: #94a3b8;
+      font-size: 11px;
+    }
+
+    .field select,
+    .field input[type="text"],
+    .field textarea {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      font-size: 14px;
+      background: #fff;
+      outline: none;
+      font-family: inherit;
+      color: #1e293b;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    .field select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 36px;
+      cursor: pointer;
+    }
+
+    .field select:focus,
+    .field input[type="text"]:focus,
+    .field textarea:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+    }
+
+    .field textarea {
+      resize: vertical;
+      min-height: 90px;
+    }
+
+    /* ── Audience pills ── */
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .pill {
+      padding: 8px 15px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 100px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      background: #fff;
+      color: #475569;
+      transition: all 0.12s;
+      user-select: none;
+      font-family: inherit;
+    }
+
+    .pill:hover { border-color: #a5b4fc; color: #4f46e5; }
+
+    .pill.active {
+      background: #6366f1;
+      border-color: #6366f1;
+      color: #fff;
+    }
+
+    /* ── Generate button ── */
+    .btn-generate {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 16px;
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: -0.2px;
+      font-family: inherit;
+      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+      margin-bottom: 36px;
+    }
+
+    .btn-generate:hover:not(:disabled) {
+      background: #4f46e5;
+      box-shadow: 0 4px 18px rgba(99, 102, 241, 0.3);
+    }
+
+    .btn-generate:active:not(:disabled) { transform: scale(0.99); }
+
+    .btn-generate:disabled {
+      opacity: 0.8;
+      cursor: not-allowed;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2.5px solid rgba(255, 255, 255, 0.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      flex-shrink: 0;
+    }
+
+    /* ── Output ── */
+    .output-wrap {
+      display: none;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+
+    .output-wrap.visible { display: block; }
+    .output-wrap.in { opacity: 1; transform: none; }
+
+    .output-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .output-header h2 {
+      font-size: 17px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .btn-copy {
+      padding: 7px 14px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #475569;
+      font-family: inherit;
+      transition: background 0.12s;
+    }
+
+    .btn-copy:hover { background: #e2e8f0; }
+
+    .brief-output {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-left: 3px solid #6366f1;
+      border-radius: 10px;
+      padding: 28px 32px;
+      white-space: pre-wrap;
+      font-size: 14px;
+      line-height: 1.8;
+      color: #1e293b;
+      overflow-wrap: break-word;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 680px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+
+      .config-row { grid-template-columns: 1fr; }
+
+      /* hide thumbstop + CTR columns on mobile */
+      .creative-header,
+      .creative-row {
+        grid-template-columns: 28px 1fr 68px;
+      }
+
+      .creative-header > *:nth-child(4),
+      .creative-header > *:nth-child(5),
+      .creative-row > .col-thumbstop,
+      .creative-row > .col-ctr { display: none; }
+
+      .header h1 { font-size: 24px; }
+      .brief-output { padding: 20px; }
+    }
+
+    @media (max-width: 400px) {
+      .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+      .stat-value { font-size: 20px; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-eyebrow">Paid Social · Creative Strategy</div>
+    <h1>LoopNote Brief Generator</h1>
+    <p>Turn performance data &amp; research notes into AI-generated creative briefs for your next paid social campaign.</p>
+  </div>
+
+  <!-- Warning -->
+  <div class="warning" id="warning">
+    ⚠ Please enter your Anthropic API key before generating a brief.
+  </div>
+
+  <!-- API Key -->
+  <div class="api-key-wrap">
+    <label>Anthropic API Key</label>
+    <input type="password" id="apiKey" placeholder="sk-ant-api03-…" autocomplete="off" spellcheck="false">
+    <div class="api-key-hint">Stored in memory only &mdash; never persisted or sent anywhere except the Anthropic API.</div>
+  </div>
+
+  <!-- Stats -->
+  <div class="section-label">Campaign Overview</div>
+  <div class="stats-grid" id="statsGrid"></div>
+
+  <!-- Creative selector -->
+  <div class="creative-selector">
+    <div class="section-label">Select Creatives to Reference</div>
+    <div class="creative-table">
+      <div class="creative-header">
+        <div></div>
+        <div>Creative</div>
+        <div style="text-align:right">CPA</div>
+        <div style="text-align:right">Thumbstop</div>
+        <div style="text-align:right">CTR</div>
+      </div>
+      <div id="creativeList"></div>
+    </div>
+  </div>
+
+  <!-- Config -->
+  <div class="config-card">
+    <div class="section-label" style="margin-bottom:20px;">Brief Configuration</div>
+
+    <div class="config-row">
+      <div class="field">
+        <label>Platform</label>
+        <select id="platform">
+          <option>Meta</option>
+          <option>TikTok</option>
+          <option>Meta + TikTok</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Format</label>
+        <select id="format">
+          <option>UGC problem/solution</option>
+          <option>Creator skit</option>
+          <option>Screen-record demo</option>
+          <option>Talking head</option>
+          <option>Before/after</option>
+          <option>Trend remix</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field" style="margin-bottom:20px;">
+      <label>Audience</label>
+      <div class="pills" id="audiencePills">
+        <button class="pill active" data-v="Founders &amp; operators">Founders &amp; operators</button>
+        <button class="pill" data-v="Students">Students</button>
+        <button class="pill" data-v="Busy professionals">Busy professionals</button>
+        <button class="pill" data-v="Creators &amp; solopreneurs">Creators &amp; solopreneurs</button>
+        <button class="pill" data-v="Sales &amp; BizDev">Sales &amp; BizDev</button>
+      </div>
+    </div>
+
+    <div class="field" style="margin-bottom:20px;">
+      <label>Hook Direction <span class="optional">(optional)</span></label>
+      <input type="text" id="hookDir" placeholder='"POV: you leave every meeting with zero clarity"'>
+    </div>
+
+    <div class="field">
+      <label>Research Notes <span class="optional">(optional)</span></label>
+      <textarea id="researchNotes" placeholder="Paste competitor intel, creator trends, audience pain points…"></textarea>
+    </div>
+  </div>
+
+  <!-- Generate -->
+  <button class="btn-generate" id="generateBtn" onclick="generate()">
+    Generate creative brief
+  </button>
+
+  <!-- Output -->
+  <div class="output-wrap" id="outputWrap">
+    <div class="output-header">
+      <h2>Generated Brief</h2>
+      <button class="btn-copy" id="copyBtn" onclick="copyBrief()">Copy</button>
+    </div>
+    <div class="brief-output" id="briefOutput"></div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+/* ─────────────────────────────────────────
+   Data
+───────────────────────────────────────── */
+const CREATIVES = [
+  { id:'C01', platform:'Meta',    concept:'UGC problem/solution: "I used to leave every meeting with 4 tabs open…"',       spend:4800, thumbstop:36, hold:24,   ctr:1.7, starts:59 },
+  { id:'C02', platform:'Meta',    concept:'Static screenshots: "AI notes in one tap"',                                      spend:3200, thumbstop:25, hold:null, ctr:0.9, starts:35 },
+  { id:'C03', platform:'Meta',    concept:'Founder talking head: "Why we built LoopNote"',                                  spend:2700, thumbstop:18, hold:11,   ctr:0.6, starts:12 },
+  { id:'C04', platform:'TikTok',  concept:'Creator skit: "POV: your boss asks what was decided in the meeting"',           spend:5100, thumbstop:45, hold:31,   ctr:2.4, starts:42 },
+  { id:'C05', platform:'TikTok',  concept:'Screen-record demo: "Turn a rambling voice memo into a task list"',             spend:4400, thumbstop:39, hold:27,   ctr:2.1, starts:71 },
+  { id:'C06', platform:'TikTok',  concept:'AI avatar explainer: "Meet your AI productivity assistant"',                    spend:3000, thumbstop:22, hold:15,   ctr:0.8, starts:9  },
+  { id:'C07', platform:'YouTube', concept:'Before/after: "Before vs. after meeting notes"',                                spend:4700, thumbstop:38, hold:22,   ctr:1.3, starts:63 },
+  { id:'C08', platform:'YouTube', concept:'Tutorial: "3 ways students use LoopNote"',                                      spend:3900, thumbstop:33, hold:29,   ctr:1.1, starts:13 },
+  { id:'C09', platform:'Meta',    concept:'Creator testimonial: "I imported 120 voice notes and found 18 tasks"',          spend:5500, thumbstop:41, hold:26,   ctr:2.0, starts:67 },
+  { id:'C10', platform:'TikTok',  concept:'Trend remix: "Things I stopped doing after using AI"',                         spend:3800, thumbstop:50, hold:35,   ctr:1.9, starts:20 },
+];
+
+/* Calculate CPA */
+CREATIVES.forEach(c => { c.cpa = c.starts > 0 ? c.spend / c.starts : Infinity; });
+
+/* Sort by CPA ascending (best first) */
+const SORTED = [...CREATIVES].sort((a, b) => a.cpa - b.cpa);
+const TOP3   = new Set(SORTED.slice(0, 3).map(c => c.id));
+
+/* ─────────────────────────────────────────
+   Render: Stats
+───────────────────────────────────────── */
+function renderStats() {
+  const totalSpend  = CREATIVES.reduce((s, c) => s + c.spend, 0);
+  const totalStarts = CREATIVES.reduce((s, c) => s + c.starts, 0);
+  const blendedCPA  = totalSpend / totalStarts;
+  const bestCPA     = SORTED[0];
+  const mostStarts  = CREATIVES.reduce((a, b) => b.starts > a.starts ? b : a);
+
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-label">Total Spend</div>
+      <div class="stat-value">$${totalSpend.toLocaleString()}</div>
+      <div class="stat-meta">across 10 creatives</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Blended CPA</div>
+      <div class="stat-value">$${blendedCPA.toFixed(2)}</div>
+      <div class="stat-meta">all active creatives</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Best CPA</div>
+      <div class="stat-value">$${bestCPA.cpa.toFixed(2)}</div>
+      <div class="stat-meta">${bestCPA.id} &middot; ${bestCPA.platform}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Most Paid Starts</div>
+      <div class="stat-value">${mostStarts.starts}</div>
+      <div class="stat-meta">${mostStarts.id} &middot; ${mostStarts.platform}</div>
+    </div>
+  `;
+}
+
+/* ─────────────────────────────────────────
+   Render: Creative list
+───────────────────────────────────────── */
+function escAttr(s) {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function renderCreatives() {
+  document.getElementById('creativeList').innerHTML = SORTED.map(c => {
+    const isTop     = TOP3.has(c.id);
+    const cpaClass  = c.cpa < 90 ? 'cpa-good' : 'cpa-bad';
+    const platClass = c.platform === 'Meta'    ? 'badge-meta'
+                    : c.platform === 'TikTok'  ? 'badge-tiktok'
+                    :                            'badge-youtube';
+    return `
+      <div class="creative-row" onclick="rowClick(event,'${c.id}')">
+        <input type="checkbox" id="cb-${c.id}" ${isTop ? 'checked' : ''}
+               onclick="event.stopPropagation()">
+        <div class="creative-main">
+          <div class="creative-id-row">
+            <span class="creative-id">${c.id}</span>
+            <span class="badge ${platClass}">${c.platform}</span>
+            ${isTop ? '<span class="badge badge-top">Top performer</span>' : ''}
+          </div>
+          <div class="creative-concept" title="${escAttr(c.concept)}">${escAttr(c.concept)}</div>
+        </div>
+        <div class="metric-cell">
+          <div class="metric-main ${cpaClass}">$${c.cpa.toFixed(0)}</div>
+          <div class="metric-unit">CPA</div>
+        </div>
+        <div class="metric-cell col-thumbstop">
+          <div class="metric-main">${c.thumbstop}%</div>
+          <div class="metric-unit">Thumbstop</div>
+        </div>
+        <div class="metric-cell col-ctr">
+          <div class="metric-main">${c.ctr}%</div>
+          <div class="metric-unit">CTR</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function rowClick(e, id) {
+  const cb = document.getElementById('cb-' + id);
+  cb.checked = !cb.checked;
+}
+
+/* ─────────────────────────────────────────
+   Audience pills
+───────────────────────────────────────── */
+document.getElementById('audiencePills').addEventListener('click', e => {
+  const pill = e.target.closest('.pill');
+  if (!pill) return;
+  document.querySelectorAll('#audiencePills .pill').forEach(p => p.classList.remove('active'));
+  pill.classList.add('active');
+});
+
+/* ─────────────────────────────────────────
+   Generate brief
+───────────────────────────────────────── */
+async function generate() {
+  const key = document.getElementById('apiKey').value.trim();
+
+  if (!key) {
+    const w = document.getElementById('warning');
+    w.classList.add('show');
+    document.getElementById('apiKey').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.getElementById('apiKey').focus();
+    return;
+  }
+  document.getElementById('warning').classList.remove('show');
+
+  const selected = CREATIVES.filter(c => document.getElementById('cb-' + c.id).checked);
+  if (!selected.length) {
+    alert('Please select at least one creative to reference.');
+    return;
+  }
+
+  const platform = document.getElementById('platform').value;
+  const format   = document.getElementById('format').value;
+  const audience = (document.querySelector('#audiencePills .pill.active') || {}).dataset.v || 'Founders & operators';
+  const hook     = document.getElementById('hookDir').value.trim();
+  const research = document.getElementById('researchNotes').value.trim();
+
+  const learnLines = selected.map(c =>
+    `- ${c.id} (${c.platform}): ${c.concept} | Thumbstop: ${c.thumbstop}% | Hold: ${c.hold != null ? c.hold + '%' : 'n/a'} | CTR: ${c.ctr}% | Paid Starts: ${c.starts} | CPA: $${c.cpa.toFixed(2)}`
+  ).join('\n');
+
+  const prompt =
+`You are a senior paid social creative strategist. Generate a tight, actionable creative brief for LoopNote — an AI voice-notes app that turns messy recordings into summaries, tasks, and follow-ups.
+
+CAMPAIGN CONTEXT:
+- Goal: Paid trial starts, target CPA under $90
+- Platform: ${platform}
+- Format: ${format}
+- Audience: ${audience}
+- Hook direction: ${hook || 'suggest strongest option based on data'}
+
+TOP CREATIVE LEARNINGS:
+${learnLines}
+${research ? '\nRESEARCH NOTES:\n' + research : ''}
+
+Generate a brief with these sections:
+1. INSIGHT — The human truth this ad is built on (2-3 sentences)
+2. HOOK (0-3s) — Exact hook line and visual direction
+3. BODY (3-20s) — Beat-by-beat breakdown
+4. CTA / CLOSE — Exact copy and visual for final 3s
+5. PERFORMANCE HYPOTHESIS — Why this should outperform, referencing at least 2 specific metrics from the data
+6. CREATOR DIRECTION — Who delivers this, tone, what NOT to do
+7. ONE THING TO TEST — Single A/B variable for next iteration
+
+Be specific. Write for a creator shooting this tomorrow. No filler.`;
+
+  /* Loading state */
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div>Generating…';
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+
+    if (!res.ok) {
+      let msg = `API error ${res.status}`;
+      try { const e = await res.json(); msg = e?.error?.message || msg; } catch {}
+      throw new Error(msg);
+    }
+
+    const data = await res.json();
+    const text = data?.content?.[0]?.text || '(No response)';
+
+    document.getElementById('briefOutput').textContent = text;
+
+    const wrap = document.getElementById('outputWrap');
+    wrap.classList.add('visible');
+    requestAnimationFrame(() => requestAnimationFrame(() => wrap.classList.add('in')));
+    setTimeout(() => wrap.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+
+  } catch (err) {
+    alert('Error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Generate creative brief';
+  }
+}
+
+/* ─────────────────────────────────────────
+   Copy brief
+───────────────────────────────────────── */
+function copyBrief() {
+  const text = document.getElementById('briefOutput').textContent;
+  const btn  = document.getElementById('copyBtn');
+
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  };
+
+  (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject())
+    .catch(fallback)
+    .finally(() => {
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+    });
+}
+
+/* ─────────────────────────────────────────
+   Init
+───────────────────────────────────────── */
+renderStats();
+renderCreatives();
+</script>
+</body>
+</html>
