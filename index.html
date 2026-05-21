@@ -8,24 +8,19 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --sidebar-w: 220px;
-      --topbar-h: 64px;
-      --bg-page:    #0f0f0f;
-      --bg-card:    #1a1a1a;
-      --bg-raised:  #222222;
-      --bg-input:   #111111;
-      --bg-sidebar: #141414;
-      --border:     #2a2a2a;
-      --border-div: #555555;
-      --text-pri:   #ffffff;
-      --text-muted: #888888;
-      --accent:     #6c63ff;
-      --accent-dim: rgba(108, 99, 255, 0.12);
-      --good:       #4ade80;
-      --bad:        #f87171;
-      --warn:       #fbbf24;
-      --radius:     12px;
-      --radius-sm:  8px;
+      --bg-page:   #0a0a0a;
+      --bg-card:   #111111;
+      --bg-raised: #181818;
+      --bg-input:  #0a0a0a;
+      --border:    #222222;
+      --text-pri:  #ffffff;
+      --text-sec:  #888888;
+      --text-muted:#555555;
+      --accent:    #a3e635;
+      --bad:       #f87171;
+      --warn:      #fbbf24;
+      --radius:    12px;
+      --radius-sm: 8px;
     }
 
     body {
@@ -34,159 +29,107 @@
       color: var(--text-pri);
       line-height: 1.5;
       -webkit-font-smoothing: antialiased;
-      display: flex;
       min-height: 100vh;
     }
 
     /* ════════════════════════════════════
-       SIDEBAR
+       FLOATING PILL NAV
     ════════════════════════════════════ */
-    .sidebar {
-      width: var(--sidebar-w);
-      min-width: var(--sidebar-w);
-      height: 100vh;
-      position: fixed;
-      left: 0; top: 0;
-      background: var(--bg-sidebar);
-      border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
+    .nav-outer {
+      position: sticky;
+      top: 0;
       z-index: 100;
+      background: var(--bg-page);
+      padding: 20px 20px 16px;
     }
 
-    .sidebar-logo {
-      padding: 22px 18px 20px;
-      border-bottom: 1px solid var(--border);
+    .nav-pill {
+      max-width: 860px;
+      margin: 0 auto;
+      background: #161616;
+      border: 1px solid #2a2a2a;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      padding: 8px 8px 8px 16px;
     }
 
-    .logo-mark { display: flex; align-items: center; gap: 10px; }
-
-    .logo-icon {
-      width: 32px; height: 32px;
-      background: var(--accent);
-      border-radius: 7px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 16px; font-weight: 500;
-      color: #fff;
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
       flex-shrink: 0;
-      letter-spacing: -0.5px;
     }
 
-    .logo-name {
-      font-size: 15px; font-weight: 500;
+    .nav-logo-icon {
+      width: 28px; height: 28px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 500;
+      color: #000;
+      flex-shrink: 0;
+    }
+
+    .nav-logo-name {
+      font-size: 14px; font-weight: 500;
       color: var(--text-pri); letter-spacing: -0.2px;
+      white-space: nowrap;
     }
 
-    .logo-tagline {
-      font-size: 11px; color: var(--text-muted);
-      margin-top: 2px; letter-spacing: 0.1px;
+    .nav-divider {
+      width: 1px; height: 20px;
+      background: #2a2a2a;
+      margin: 0 14px;
+      flex-shrink: 0;
     }
 
-    .nav-section { padding: 14px 0 0; flex: 1; }
-
-    .nav-section-label {
-      font-size: 10px; font-weight: 600;
-      text-transform: uppercase; letter-spacing: 0.9px;
-      color: #444;
-      padding: 0 18px; margin-bottom: 4px;
-    }
-
-    .nav-list { list-style: none; }
-
-    .nav-item {
-      display: flex; align-items: center; gap: 9px;
-      padding: 9px 14px 9px 15px;
-      border-left: 3px solid transparent;
-      font-size: 13.5px; font-weight: 400;
+    .nav-client {
+      font-size: 12px;
       color: var(--text-muted);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .nav-links {
+      display: flex; align-items: center; gap: 2px;
+      flex: 1; justify-content: center;
+      margin: 0 12px;
+    }
+
+    .nav-link {
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 13.5px;
+      color: #666666;
       cursor: pointer;
-      transition: background 0.1s, color 0.1s;
+      transition: color 0.12s;
       user-select: none;
+      white-space: nowrap;
     }
 
-    .nav-item svg { width: 14px; height: 14px; flex-shrink: 0; opacity: 0.7; }
-    .nav-item:hover { background: var(--border); color: #ccc; }
-    .nav-item.active { border-left-color: var(--accent); color: var(--text-pri); font-weight: 500; }
-    .nav-item.active svg { opacity: 1; }
-
-    .sidebar-footer {
-      padding: 16px 18px;
-      border-top: 1px solid var(--border);
-      font-size: 11px; color: #444;
-    }
-
-    /* ════════════════════════════════════
-       MAIN
-    ════════════════════════════════════ */
-    .main {
-      margin-left: var(--sidebar-w);
-      flex: 1;
-      display: flex; flex-direction: column;
-      min-height: 100vh;
-    }
-
-    .topbar {
-      min-height: var(--topbar-h);
-      background: var(--bg-sidebar);
-      border-bottom: 1px solid var(--border);
-      padding: 14px 32px;
-      display: flex; align-items: center; justify-content: space-between;
-      position: sticky; top: 0; z-index: 50;
-      gap: 20px;
-    }
-
-    .topbar-title {
-      font-size: 22px; font-weight: 500;
-      color: var(--text-pri); letter-spacing: -0.5px;
-      line-height: 1.1;
-    }
-
-    .topbar-subtitle { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+    .nav-link:hover { color: var(--text-pri); }
+    .nav-link.active { color: var(--accent); font-weight: 500; }
 
     .btn-new-brief {
-      display: flex; align-items: center; gap: 7px;
-      padding: 9px 18px;
-      background: var(--accent); color: #fff;
-      border: none; border-radius: var(--radius-sm);
-      font-size: 13.5px; font-weight: 500;
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 16px;
+      background: var(--accent); color: #000;
+      border: none; border-radius: 999px;
+      font-size: 13px; font-weight: 500;
       cursor: pointer; font-family: inherit;
       white-space: nowrap;
-      transition: opacity 0.15s;
+      transition: opacity 0.12s;
       flex-shrink: 0;
     }
 
     .btn-new-brief:hover { opacity: 0.88; }
 
-    .content { padding: 28px 32px 80px; }
-
     /* ════════════════════════════════════
-       CARD
+       CONTENT
     ════════════════════════════════════ */
-    .card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      margin-bottom: 16px;
-      overflow: hidden;
-    }
-
-    .card-header {
-      padding: 18px 24px;
-      border-bottom: 1px solid var(--border);
-      display: flex; align-items: flex-start;
-      justify-content: space-between; gap: 16px;
-    }
-
-    .card-title { font-size: 14px; font-weight: 500; color: var(--text-pri); letter-spacing: -0.1px; }
-    .card-subtitle { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
-    .card-body { padding: 24px; }
-
-    .card-section { padding-top: 22px; margin-top: 22px; border-top: 1px solid var(--border); }
-
-    .card-section-title {
-      font-size: 10px; font-weight: 600;
-      text-transform: uppercase; letter-spacing: 0.9px;
-      color: var(--text-muted); margin-bottom: 14px;
+    .content {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 20px 100px;
     }
 
     /* ════════════════════════════════════
@@ -195,26 +138,28 @@
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 12px; margin-bottom: 16px;
+      gap: 10px;
+      margin-bottom: 12px;
     }
 
     .stat-card {
       background: var(--bg-card);
-      border: 1px solid var(--border);
+      border: 0.5px solid var(--border);
       border-radius: var(--radius);
-      padding: 20px 22px;
+      padding: 20px 20px 18px;
     }
 
     .stat-label {
       font-size: 11px; font-weight: 500;
-      text-transform: uppercase; letter-spacing: 0.8px;
-      color: var(--text-muted); margin-bottom: 10px;
+      text-transform: uppercase; letter-spacing: 0.9px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
     }
 
     .stat-value {
-      font-size: 32px; font-weight: 500;
+      font-size: 36px; font-weight: 500;
       color: var(--text-pri);
-      letter-spacing: -1.5px; line-height: 1;
+      letter-spacing: -2px; line-height: 1;
       margin-bottom: 10px;
     }
 
@@ -223,7 +168,37 @@
       display: flex; align-items: center; gap: 5px;
     }
 
-    .stat-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .stat-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ════════════════════════════════════
+       CARD
+    ════════════════════════════════════ */
+    .card {
+      background: var(--bg-card);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 18px 22px;
+      border-bottom: 0.5px solid var(--border);
+      display: flex; align-items: flex-start;
+      justify-content: space-between; gap: 16px;
+    }
+
+    .card-title { font-size: 16px; font-weight: 500; color: var(--text-pri); letter-spacing: -0.2px; }
+    .card-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
+    .card-body { padding: 22px; }
+
+    .card-section { padding-top: 20px; margin-top: 20px; border-top: 0.5px solid var(--border); }
+
+    .card-section-title {
+      font-size: 10px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 1px;
+      color: var(--text-muted); margin-bottom: 12px;
+    }
 
     /* ════════════════════════════════════
        PORTFOLIO TABLE
@@ -237,32 +212,32 @@
       display: grid;
       grid-template-columns: 100px 1fr 78px 68px 78px 82px 96px;
       gap: 12px;
-      padding: 10px 24px;
-      border-bottom: 1px solid var(--border);
+      padding: 10px 22px;
+      border-bottom: 0.5px solid var(--border);
       font-size: 10px; font-weight: 600;
-      text-transform: uppercase; letter-spacing: 0.8px;
-      color: var(--text-muted); align-items: center;
+      text-transform: uppercase; letter-spacing: 0.9px;
+      color: #444444; align-items: center;
     }
 
     .kos-row {
       display: grid;
       grid-template-columns: 100px 1fr 78px 68px 78px 82px 96px;
       gap: 12px;
-      padding: 13px 24px;
-      border-bottom: 1px solid var(--border);
+      padding: 12px 22px;
+      border-bottom: 0.5px solid var(--border);
       align-items: center;
       transition: background 0.1s;
     }
 
     .kos-row:last-child { border-bottom: none; }
-    .kos-row:nth-child(even) { background: #1f1f1f; }
+    .kos-row:nth-child(even) { background: #1a1a1a; }
     .kos-row:hover { background: var(--bg-raised); }
 
     .kos-cell-id { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .kos-id { font-size: 13px; font-weight: 500; color: var(--text-pri); }
 
     .kos-concept {
-      font-size: 13px; color: var(--text-muted);
+      font-size: 13px; color: var(--text-sec);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
 
@@ -270,14 +245,14 @@
     .kos-cell { text-align: right; }
 
     .rec-pill {
-      display: inline-block; padding: 4px 10px;
-      border-radius: 6px;
+      display: inline-block; padding: 3px 10px;
+      border-radius: 5px;
       font-size: 11px; font-weight: 500; white-space: nowrap;
     }
 
-    .rec-scale { background: #14532d; color: var(--good); }
-    .rec-test  { background: #451a03; color: var(--warn); }
-    .rec-kill  { background: #450a0a; color: var(--bad); }
+    .rec-scale { background: #0a1f0a; color: var(--accent); }
+    .rec-test  { background: #1f150a; color: var(--warn); }
+    .rec-kill  { background: #1f0a0a; color: var(--bad); }
 
     /* ════════════════════════════════════
        PLATFORM + TOP BADGES
@@ -288,19 +263,19 @@
       letter-spacing: 0.1px;
     }
 
-    .badge-meta    { background: #1e2a3a; color: #60a5fa; }
-    .badge-tiktok  { background: #2a1a3a; color: #c084fc; }
-    .badge-youtube { background: #3a1a1a; color: #f87171; }
-    .badge-top     { background: #14532d; color: var(--good); }
+    .badge-meta    { background: #1a1a3a; color: #6366f1; }
+    .badge-tiktok  { background: #1a0a0a; color: #f43f5e; }
+    .badge-youtube { background: #1a0a00; color: #f97316; }
+    .badge-top     { background: #0a1f0a; color: var(--accent); }
 
-    .cpa-good { color: var(--good); }
+    .cpa-good { color: var(--accent); }
     .cpa-bad  { color: var(--bad); }
 
     /* ════════════════════════════════════
        CREATIVE SELECTOR
     ════════════════════════════════════ */
     .creative-table {
-      border: 1px solid var(--border);
+      border: 0.5px solid var(--border);
       border-radius: var(--radius-sm);
       overflow: hidden;
     }
@@ -310,17 +285,17 @@
       grid-template-columns: 28px 1fr 68px 80px 60px;
       gap: 12px; padding: 9px 16px;
       background: var(--bg-page);
-      border-bottom: 1px solid var(--border);
+      border-bottom: 0.5px solid var(--border);
       font-size: 10px; font-weight: 600;
-      text-transform: uppercase; letter-spacing: 0.8px;
-      color: var(--text-muted); align-items: center;
+      text-transform: uppercase; letter-spacing: 0.9px;
+      color: #444444; align-items: center;
     }
 
     .creative-row {
       display: grid;
       grid-template-columns: 28px 1fr 68px 80px 60px;
       gap: 12px; padding: 11px 16px;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 0.5px solid var(--border);
       align-items: center; cursor: pointer;
       transition: background 0.1s;
     }
@@ -347,21 +322,21 @@
 
     .metric-cell { text-align: right; }
     .metric-main { font-size: 13px; font-weight: 500; color: var(--text-pri); }
-    .metric-unit { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 0.3px; }
+    .metric-unit { font-size: 10px; color: #444444; text-transform: uppercase; letter-spacing: 0.3px; }
 
     /* ════════════════════════════════════
        CONFIG FORM
     ════════════════════════════════════ */
     .config-grid {
       display: grid; grid-template-columns: 1fr 1fr;
-      gap: 16px; margin-bottom: 16px;
+      gap: 14px; margin-bottom: 14px;
     }
 
     .field-label {
       display: block;
       font-size: 10px; font-weight: 600;
-      text-transform: uppercase; letter-spacing: 0.8px;
-      color: var(--text-muted); margin-bottom: 8px;
+      text-transform: uppercase; letter-spacing: 0.9px;
+      color: var(--text-muted); margin-bottom: 7px;
     }
 
     .field-label .optional {
@@ -373,7 +348,7 @@
     .field input[type="text"],
     .field textarea {
       width: 100%; padding: 10px 14px;
-      border: 1px solid var(--border);
+      border: 0.5px solid var(--border);
       border-radius: var(--radius-sm);
       font-size: 14px; background: var(--bg-input);
       outline: none; font-family: inherit;
@@ -383,9 +358,10 @@
     }
 
     .field select {
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%23555555' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
       background-repeat: no-repeat;
       background-position: right 14px center;
+      background-color: var(--bg-input);
       padding-right: 36px; cursor: pointer;
     }
 
@@ -395,15 +371,15 @@
       border-color: var(--accent);
     }
 
-    .field select option { background: #1a1a1a; }
+    .field select option { background: #111111; }
 
     .field textarea { resize: vertical; min-height: 88px; }
 
-    .pills { display: flex; flex-wrap: wrap; gap: 7px; }
+    .pills { display: flex; flex-wrap: wrap; gap: 6px; }
 
     .pill {
       padding: 7px 14px;
-      border: 1px solid var(--border);
+      border: 0.5px solid var(--border);
       border-radius: 100px;
       font-size: 13px; font-weight: 400;
       cursor: pointer; background: var(--bg-raised);
@@ -412,19 +388,19 @@
       user-select: none; font-family: inherit;
     }
 
-    .pill:hover { border-color: #444; color: #ccc; }
-    .pill.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .pill:hover { color: var(--text-sec); }
+    .pill.active { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 500; }
 
     .btn-generate {
       display: flex; align-items: center; justify-content: center;
       gap: 10px; width: 100%;
       padding: 14px;
-      background: var(--accent); color: #fff;
+      background: var(--accent); color: #000;
       border: none; border-radius: var(--radius-sm);
       font-size: 14px; font-weight: 500;
       cursor: pointer; font-family: inherit;
       transition: opacity 0.15s;
-      margin-top: 22px;
+      margin-top: 20px;
     }
 
     .btn-generate:hover:not(:disabled) { opacity: 0.88; }
@@ -435,8 +411,8 @@
 
     .spinner {
       width: 16px; height: 16px;
-      border: 2px solid rgba(255,255,255,0.25);
-      border-top-color: #fff;
+      border: 2px solid rgba(0,0,0,0.25);
+      border-top-color: #000;
       border-radius: 50%;
       animation: spin 0.75s linear infinite;
       flex-shrink: 0;
@@ -455,9 +431,9 @@
     #outputWrap.in { opacity: 1; transform: none; }
 
     .btn-copy {
-      padding: 6px 14px;
+      padding: 5px 12px;
       background: transparent;
-      border: 1px solid var(--border);
+      border: 0.5px solid var(--border);
       border-radius: 6px;
       font-size: 12px; font-weight: 500;
       cursor: pointer; color: var(--text-muted);
@@ -466,26 +442,21 @@
       flex-shrink: 0;
     }
 
-    .btn-copy:hover { border-color: #555; color: #ccc; }
+    .btn-copy:hover { border-color: #444; color: var(--text-sec); }
 
     .brief-output {
       white-space: pre-wrap;
       font-size: 13.5px; line-height: 1.8;
-      color: #ccc;
+      color: #cccccc;
       overflow-wrap: break-word;
     }
 
     /* ════════════════════════════════════
        RESPONSIVE
     ════════════════════════════════════ */
-    @media (max-width: 900px) {
-      .sidebar { display: none; }
-      .main { margin-left: 0; }
-      .topbar { padding: 14px 20px; }
-      .content { padding: 20px 20px 60px; }
-    }
-
-    @media (max-width: 680px) {
+    @media (max-width: 780px) {
+      .nav-client, .nav-divider { display: none; }
+      .content { padding: 0 14px 80px; }
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
       .config-grid { grid-template-columns: 1fr; }
 
@@ -505,181 +476,161 @@
       .kos-row > .kos-col-starts,
       .kos-row > .kos-col-thumb { display: none; }
 
-      .card-body { padding: 18px; }
-      .card-header { padding: 16px 18px; }
+      .card-body { padding: 16px; }
+      .card-header { padding: 14px 16px; }
+      .kos-thead { padding: 10px 16px; }
+      .kos-row { padding: 12px 16px; }
     }
 
-    @media (max-width: 400px) {
-      .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-      .stat-value { font-size: 26px; }
+    @media (max-width: 480px) {
+      .nav-pill { border-radius: 14px; padding: 8px; }
+      .nav-links { gap: 0; }
+      .nav-link { padding: 6px 10px; font-size: 12px; }
+      .btn-new-brief { padding: 7px 12px; font-size: 12px; }
+      .stats-grid { gap: 8px; }
+      .stat-value { font-size: 28px; letter-spacing: -1.5px; }
     }
   </style>
 </head>
 <body>
 
-  <!-- ── Sidebar ── -->
-  <aside class="sidebar">
-    <div class="sidebar-logo">
-      <div class="logo-mark">
-        <div class="logo-icon">G</div>
-        <div>
-          <div class="logo-name">Growth OS</div>
-          <div class="logo-tagline">LoopNote — Paid Social</div>
-        </div>
+  <!-- ── Floating pill nav ── -->
+  <nav class="nav-outer">
+    <div class="nav-pill">
+      <div class="nav-logo">
+        <div class="nav-logo-icon">G</div>
+        <span class="nav-logo-name">Growth OS</span>
       </div>
-    </div>
-    <div class="nav-section">
-      <ul class="nav-list">
-        <li class="nav-item active">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-          Dashboard
-        </li>
-        <li class="nav-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
-          Portfolio
-        </li>
-        <li class="nav-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-          Brief Generator
-        </li>
-        <li class="nav-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.07 4.93A10 10 0 0 0 12 2a10 10 0 0 0-7.07 2.93"></path><path d="M4.93 19.07A10 10 0 0 0 12 22a10 10 0 0 0 7.07-2.93"></path></svg>
-          Settings
-        </li>
-      </ul>
-    </div>
-    <div class="sidebar-footer">Q2 2025</div>
-  </aside>
+      <div class="nav-divider"></div>
+      <span class="nav-client">LoopNote — Paid Social</span>
 
-  <!-- ── Main ── -->
-  <div class="main">
-
-    <div class="topbar">
-      <div>
-        <div class="topbar-title">Dashboard</div>
-        <div class="topbar-subtitle">LoopNote — Paid Social Q2</div>
+      <div class="nav-links">
+        <span class="nav-link active">Dashboard</span>
+        <span class="nav-link">Portfolio</span>
+        <span class="nav-link" onclick="document.getElementById('briefCard').scrollIntoView({behavior:'smooth'})">Brief Generator</span>
       </div>
+
       <button class="btn-new-brief" onclick="document.getElementById('briefCard').scrollIntoView({behavior:'smooth'})">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        New Brief
+        + New Brief
       </button>
     </div>
+  </nav>
 
-    <div class="content">
+  <!-- ── Page content ── -->
+  <main class="content">
 
-      <!-- Stat cards -->
-      <div class="stats-grid" id="statsGrid"></div>
+    <!-- Stat cards -->
+    <div class="stats-grid" id="statsGrid"></div>
 
-      <!-- Portfolio view -->
-      <div class="card">
-        <div class="card-header">
-          <div>
-            <div class="card-title">Portfolio view</div>
-            <div class="card-subtitle">Budget allocation by creative performance</div>
-          </div>
-          <div class="portfolio-summary" id="kosSummary"></div>
+    <!-- Portfolio view -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Portfolio view</div>
+          <div class="card-subtitle">Budget allocation by creative performance</div>
         </div>
-        <div class="kos-thead">
-          <div>Creative</div>
-          <div>Concept</div>
-          <div style="text-align:right">Spend</div>
-          <div style="text-align:right">Starts</div>
-          <div style="text-align:right">CPA</div>
-          <div style="text-align:right">Thumbstop</div>
-          <div style="text-align:right">Action</div>
-        </div>
-        <div id="kosBody"></div>
+        <div class="portfolio-summary" id="kosSummary"></div>
       </div>
+      <div class="kos-thead">
+        <div>Creative</div>
+        <div>Concept</div>
+        <div style="text-align:right">Spend</div>
+        <div style="text-align:right">Starts</div>
+        <div style="text-align:right">CPA</div>
+        <div style="text-align:right">Thumbstop</div>
+        <div style="text-align:right">Action</div>
+      </div>
+      <div id="kosBody"></div>
+    </div>
 
-      <!-- Brief Generator -->
-      <div class="card" id="briefCard">
-        <div class="card-header">
-          <div>
-            <div class="card-title">Brief generator</div>
-            <div class="card-subtitle">Select creatives, configure, and generate with AI</div>
-          </div>
+    <!-- Brief Generator -->
+    <div class="card" id="briefCard">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Brief generator</div>
+          <div class="card-subtitle">Select creatives, configure, and generate with AI</div>
         </div>
-        <div class="card-body">
+      </div>
+      <div class="card-body">
 
-          <div class="card-section-title">Creatives to reference</div>
-          <div class="creative-table">
-            <div class="creative-header">
-              <div></div>
-              <div>Creative</div>
-              <div style="text-align:right">CPA</div>
-              <div style="text-align:right">Thumbstop</div>
-              <div style="text-align:right">CTR</div>
-            </div>
-            <div id="creativeList"></div>
+        <div class="card-section-title">Creatives to reference</div>
+        <div class="creative-table">
+          <div class="creative-header">
+            <div></div>
+            <div>Creative</div>
+            <div style="text-align:right">CPA</div>
+            <div style="text-align:right">Thumbstop</div>
+            <div style="text-align:right">CTR</div>
           </div>
+          <div id="creativeList"></div>
+        </div>
 
-          <div class="card-section">
-            <div class="card-section-title">Configuration</div>
+        <div class="card-section">
+          <div class="card-section-title">Configuration</div>
 
-            <div class="config-grid">
-              <div class="field">
-                <label class="field-label">Platform</label>
-                <select id="platform">
-                  <option>Meta</option>
-                  <option>TikTok</option>
-                  <option>Meta + TikTok</option>
-                </select>
-              </div>
-              <div class="field">
-                <label class="field-label">Format</label>
-                <select id="format">
-                  <option>UGC problem/solution</option>
-                  <option>Creator skit</option>
-                  <option>Screen-record demo</option>
-                  <option>Talking head</option>
-                  <option>Before/after</option>
-                  <option>Trend remix</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="field" style="margin-bottom:16px;">
-              <label class="field-label">Audience</label>
-              <div class="pills" id="audiencePills">
-                <button class="pill active" data-v="Founders &amp; operators">Founders &amp; operators</button>
-                <button class="pill" data-v="Students">Students</button>
-                <button class="pill" data-v="Busy professionals">Busy professionals</button>
-                <button class="pill" data-v="Creators &amp; solopreneurs">Creators &amp; solopreneurs</button>
-                <button class="pill" data-v="Sales &amp; BizDev">Sales &amp; BizDev</button>
-              </div>
-            </div>
-
-            <div class="field" style="margin-bottom:16px;">
-              <label class="field-label">Hook Direction <span class="optional">(optional)</span></label>
-              <input type="text" id="hookDir" placeholder='"POV: you leave every meeting with zero clarity"'>
-            </div>
-
+          <div class="config-grid">
             <div class="field">
-              <label class="field-label">Research Notes <span class="optional">(optional)</span></label>
-              <textarea id="researchNotes" placeholder="Paste competitor intel, creator trends, audience pain points…"></textarea>
+              <label class="field-label">Platform</label>
+              <select id="platform">
+                <option>Meta</option>
+                <option>TikTok</option>
+                <option>Meta + TikTok</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-label">Format</label>
+              <select id="format">
+                <option>UGC problem/solution</option>
+                <option>Creator skit</option>
+                <option>Screen-record demo</option>
+                <option>Talking head</option>
+                <option>Before/after</option>
+                <option>Trend remix</option>
+              </select>
             </div>
           </div>
 
-          <button class="btn-generate" id="generateBtn" onclick="generate()">
-            Generate creative brief
-          </button>
+          <div class="field" style="margin-bottom:14px;">
+            <label class="field-label">Audience</label>
+            <div class="pills" id="audiencePills">
+              <button class="pill active" data-v="Founders &amp; operators">Founders &amp; operators</button>
+              <button class="pill" data-v="Students">Students</button>
+              <button class="pill" data-v="Busy professionals">Busy professionals</button>
+              <button class="pill" data-v="Creators &amp; solopreneurs">Creators &amp; solopreneurs</button>
+              <button class="pill" data-v="Sales &amp; BizDev">Sales &amp; BizDev</button>
+            </div>
+          </div>
 
+          <div class="field" style="margin-bottom:14px;">
+            <label class="field-label">Hook Direction <span class="optional">(optional)</span></label>
+            <input type="text" id="hookDir" placeholder='"POV: you leave every meeting with zero clarity"'>
+          </div>
+
+          <div class="field">
+            <label class="field-label">Research Notes <span class="optional">(optional)</span></label>
+            <textarea id="researchNotes" placeholder="Paste competitor intel, creator trends, audience pain points…"></textarea>
+          </div>
         </div>
+
+        <button class="btn-generate" id="generateBtn" onclick="generate()">
+          Generate creative brief
+        </button>
+
       </div>
+    </div>
 
-      <!-- Output -->
-      <div class="card" id="outputWrap">
-        <div class="card-header">
-          <div class="card-title">Generated Brief</div>
-          <button class="btn-copy" id="copyBtn" onclick="copyBrief()">Copy</button>
-        </div>
-        <div class="card-body">
-          <div class="brief-output" id="briefOutput"></div>
-        </div>
+    <!-- Output -->
+    <div class="card" id="outputWrap">
+      <div class="card-header">
+        <div class="card-title">Generated Brief</div>
+        <button class="btn-copy" id="copyBtn" onclick="copyBrief()">Copy</button>
       </div>
+      <div class="card-body">
+        <div class="brief-output" id="briefOutput"></div>
+      </div>
+    </div>
 
-    </div><!-- /content -->
-  </div><!-- /main -->
+  </main>
 
 <script>
 /* ─────────────────────────────────────────
@@ -758,8 +709,8 @@ function renderStats() {
     <div class="stat-card">
       <div class="stat-label">Total Spend</div>
       <div class="stat-value">$${totalSpend.toLocaleString()}</div>
-      <div class="stat-meta" style="color:#888">
-        <span class="stat-dot" style="background:#555"></span>10 creatives
+      <div class="stat-meta" style="color:#555555">
+        <span class="stat-dot" style="background:#555555"></span>10 creatives
       </div>
     </div>
     <div class="stat-card">
@@ -772,15 +723,15 @@ function renderStats() {
     <div class="stat-card">
       <div class="stat-label">Best CPA</div>
       <div class="stat-value">$${bestCPA.cpa.toFixed(2)}</div>
-      <div class="stat-meta" style="color:#4ade80">
-        <span class="stat-dot" style="background:#4ade80"></span>${bestCPA.id} &middot; ${bestCPA.platform}
+      <div class="stat-meta" style="color:#a3e635">
+        <span class="stat-dot" style="background:#a3e635"></span>${bestCPA.id} &middot; ${bestCPA.platform}
       </div>
     </div>
     <div class="stat-card">
       <div class="stat-label">Most Paid Starts</div>
       <div class="stat-value">${mostStarts.starts}</div>
-      <div class="stat-meta" style="color:#4ade80">
-        <span class="stat-dot" style="background:#4ade80"></span>${mostStarts.id} &middot; ${mostStarts.platform}
+      <div class="stat-meta" style="color:#a3e635">
+        <span class="stat-dot" style="background:#a3e635"></span>${mostStarts.id} &middot; ${mostStarts.platform}
       </div>
     </div>
   `;
