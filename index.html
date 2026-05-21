@@ -391,6 +391,145 @@
       overflow-wrap: break-word;
     }
 
+    /* ── Hook Scorer ── */
+    .hook-scorer {
+      margin-top: 52px;
+      padding-top: 48px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .hook-scorer-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.5px;
+      margin-bottom: 4px;
+    }
+
+    .hook-scorer-subtitle {
+      font-size: 14px;
+      color: #64748b;
+      margin-bottom: 18px;
+    }
+
+    .hook-input-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .hook-input-row input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      font-size: 14px;
+      background: #fff;
+      outline: none;
+      font-family: inherit;
+      color: #1e293b;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      min-width: 0;
+    }
+
+    .hook-input-row input:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+    }
+
+    .btn-score {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background 0.15s, box-shadow 0.15s;
+    }
+
+    .btn-score:hover:not(:disabled) {
+      background: #4f46e5;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.28);
+    }
+
+    .btn-score:active:not(:disabled) { transform: scale(0.99); }
+
+    .btn-score:disabled { opacity: 0.8; cursor: not-allowed; }
+
+    .score-card {
+      display: none;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.35s ease, transform 0.35s ease;
+      margin-top: 20px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .score-card.visible { display: block; }
+    .score-card.in { opacity: 1; transform: none; }
+
+    .score-top {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 24px 28px 20px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .score-number {
+      font-size: 48px;
+      font-weight: 800;
+      letter-spacing: -2px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .score-green { color: #16a34a; }
+    .score-amber { color: #d97706; }
+    .score-red   { color: #dc2626; }
+
+    .score-verdict {
+      font-size: 15px;
+      font-weight: 600;
+      color: #1e293b;
+      line-height: 1.45;
+    }
+
+    .score-sections { }
+
+    .score-section {
+      padding: 16px 28px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .score-section:last-child { border-bottom: none; }
+
+    .score-section-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #94a3b8;
+      margin-bottom: 6px;
+    }
+
+    .score-section-body {
+      font-size: 14px;
+      color: #1e293b;
+      line-height: 1.65;
+    }
+
     /* ── Responsive ── */
     @media (max-width: 680px) {
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -410,6 +549,10 @@
 
       .header h1 { font-size: 24px; }
       .brief-output { padding: 20px; }
+      .hook-input-row { flex-direction: column; }
+      .btn-score { width: 100%; }
+      .score-top { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .score-section { padding: 14px 20px; }
     }
 
     @media (max-width: 400px) {
@@ -507,6 +650,36 @@
       <button class="btn-copy" id="copyBtn" onclick="copyBrief()">Copy</button>
     </div>
     <div class="brief-output" id="briefOutput"></div>
+  </div>
+
+  <!-- Hook Scorer -->
+  <div class="hook-scorer">
+    <h2 class="hook-scorer-title">Hook scorer</h2>
+    <p class="hook-scorer-subtitle">Test any hook line before you shoot</p>
+    <div class="hook-input-row">
+      <input type="text" id="hookScoreInput" placeholder='e.g. "POV: your boss asks what was decided in the meeting"'>
+      <button class="btn-score" id="scoreBtn" onclick="scoreHook()">Score my hook ↗</button>
+    </div>
+    <div class="score-card" id="scoreCard">
+      <div class="score-top">
+        <div class="score-number" id="scoreNumber"></div>
+        <div class="score-verdict" id="scoreVerdict"></div>
+      </div>
+      <div class="score-sections">
+        <div class="score-section">
+          <div class="score-section-label">Why it works</div>
+          <div class="score-section-body" id="scoreWhy"></div>
+        </div>
+        <div class="score-section">
+          <div class="score-section-label">What could kill it</div>
+          <div class="score-section-body" id="scoreKill"></div>
+        </div>
+        <div class="score-section">
+          <div class="score-section-label">Suggested tweak</div>
+          <div class="score-section-body" id="scoreTweak"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
 </div><!-- /container -->
@@ -748,6 +921,111 @@ function copyBrief() {
       btn.textContent = 'Copied!';
       setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
     });
+}
+
+/* ─────────────────────────────────────────
+   Score hook
+───────────────────────────────────────── */
+async function scoreHook() {
+  const hook = document.getElementById('hookScoreInput').value.trim();
+  if (!hook) {
+    alert('Enter a hook line to score.');
+    document.getElementById('hookScoreInput').focus();
+    return;
+  }
+
+  if (!_apiKey) {
+    const entered = window.prompt('Enter your Anthropic API key:');
+    if (!entered || !entered.trim()) return;
+    _apiKey = entered.trim();
+  }
+  const key = _apiKey;
+
+  const prompt =
+`You are a paid social creative strategist specializing in short-form performance ads.
+
+Score this hook line for a LoopNote ad (AI voice-notes app for professionals):
+"${hook}"
+
+Use this performance benchmark data from real LoopNote creatives:
+- Best thumbstop: 50% — "Things I stopped doing after using AI" (trend remix, TikTok)
+- Strong thumbstop: 45% — "POV: your boss asks what was decided in the meeting" (creator skit, TikTok)
+- Strong thumbstop: 41% — "I imported 120 voice notes and found 18 tasks" (testimonial, Meta)
+- Weak thumbstop: 18% — "Why we built LoopNote" (founder talking head, Meta)
+- Weak thumbstop: 22% — "Meet your AI productivity assistant" (AI avatar, TikTok)
+
+Patterns that drive high thumbstop: specific numbers, relatable workplace pain, POV framing, curiosity gap, self-aware humor.
+Patterns that kill thumbstop: vague value props, brand-first language, generic AI positioning.
+
+Target audience: professionals, founders, students, creators, operators who use voice memos or meetings.
+Campaign goal: paid starts, target CPA under $90.
+
+Respond in this exact format:
+SCORE: [number out of 10]
+VERDICT: [one punchy sentence]
+WHY IT WORKS: [2-3 sentences]
+WHAT COULD KILL IT: [2-3 sentences]
+SUGGESTED TWEAK: [one improved version of the hook]`;
+
+  const btn = document.getElementById('scoreBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div>Scoring…';
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 500,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+
+    if (!res.ok) {
+      let msg = `API error ${res.status}`;
+      try { const e = await res.json(); msg = e?.error?.message || msg; } catch {}
+      throw new Error(msg);
+    }
+
+    const data = await res.json();
+    const text = data?.content?.[0]?.text || '';
+
+    const scoreMatch   = text.match(/SCORE:\s*(\d+)/i);
+    const verdictMatch = text.match(/VERDICT:\s*(.+)/i);
+    const whyMatch     = text.match(/WHY IT WORKS:\s*([\s\S]+?)(?=WHAT COULD KILL IT:|$)/i);
+    const killMatch    = text.match(/WHAT COULD KILL IT:\s*([\s\S]+?)(?=SUGGESTED TWEAK:|$)/i);
+    const tweakMatch   = text.match(/SUGGESTED TWEAK:\s*([\s\S]+?)$/i);
+
+    const score   = scoreMatch ? parseInt(scoreMatch[1], 10) : null;
+    const numEl   = document.getElementById('scoreNumber');
+    numEl.textContent = score !== null ? score + '/10' : '?/10';
+    numEl.className   = 'score-number';
+    if (score !== null) {
+      numEl.classList.add(score >= 8 ? 'score-green' : score >= 5 ? 'score-amber' : 'score-red');
+    }
+
+    document.getElementById('scoreVerdict').textContent = verdictMatch ? verdictMatch[1].trim() : '';
+    document.getElementById('scoreWhy').textContent     = whyMatch     ? whyMatch[1].trim()     : '';
+    document.getElementById('scoreKill').textContent    = killMatch    ? killMatch[1].trim()    : '';
+    document.getElementById('scoreTweak').textContent   = tweakMatch   ? tweakMatch[1].trim()   : '';
+
+    const card = document.getElementById('scoreCard');
+    card.classList.add('visible');
+    requestAnimationFrame(() => requestAnimationFrame(() => card.classList.add('in')));
+    setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 60);
+
+  } catch (err) {
+    alert('Error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Score my hook ↗';
+  }
 }
 
 /* ─────────────────────────────────────────
