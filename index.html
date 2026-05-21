@@ -58,62 +58,6 @@
       margin-bottom: 10px;
     }
 
-    /* ── Warning banner ── */
-    .warning {
-      display: none;
-      background: #fffbeb;
-      border: 1px solid #fbbf24;
-      border-radius: 8px;
-      padding: 12px 16px;
-      font-size: 14px;
-      color: #92400e;
-      margin-bottom: 24px;
-    }
-    .warning.show { display: block; }
-
-    /* ── API Key ── */
-    .api-key-wrap {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 16px 20px;
-      margin-bottom: 36px;
-    }
-
-    .api-key-wrap label {
-      display: block;
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.7px;
-      color: #64748b;
-      margin-bottom: 10px;
-    }
-
-    .api-key-wrap input {
-      width: 100%;
-      padding: 10px 14px;
-      border: 1px solid #cbd5e1;
-      border-radius: 7px;
-      font-size: 14px;
-      outline: none;
-      background: #fff;
-      font-family: 'SF Mono', 'Fira Code', 'Fira Mono', monospace;
-      color: #1e293b;
-      transition: border-color 0.15s, box-shadow 0.15s;
-    }
-
-    .api-key-wrap input:focus {
-      border-color: #6366f1;
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
-    }
-
-    .api-key-hint {
-      margin-top: 8px;
-      font-size: 12px;
-      color: #94a3b8;
-    }
-
     /* ── Stats grid ── */
     .stats-grid {
       display: grid;
@@ -484,18 +428,6 @@
     <p>Turn performance data &amp; research notes into AI-generated creative briefs for your next paid social campaign.</p>
   </div>
 
-  <!-- Warning -->
-  <div class="warning" id="warning">
-    ⚠ Please enter your Anthropic API key before generating a brief.
-  </div>
-
-  <!-- API Key -->
-  <div class="api-key-wrap">
-    <label>Anthropic API Key</label>
-    <input type="password" id="apiKey" placeholder="sk-ant-api03-…" autocomplete="off" spellcheck="false">
-    <div class="api-key-hint">Stored in memory only &mdash; never persisted or sent anywhere except the Anthropic API.</div>
-  </div>
-
   <!-- Stats -->
   <div class="section-label">Campaign Overview</div>
   <div class="stats-grid" id="statsGrid"></div>
@@ -697,17 +629,15 @@ document.getElementById('audiencePills').addEventListener('click', e => {
 /* ─────────────────────────────────────────
    Generate brief
 ───────────────────────────────────────── */
-async function generate() {
-  const key = document.getElementById('apiKey').value.trim();
+let _apiKey = '';
 
-  if (!key) {
-    const w = document.getElementById('warning');
-    w.classList.add('show');
-    document.getElementById('apiKey').scrollIntoView({ behavior: 'smooth', block: 'center' });
-    document.getElementById('apiKey').focus();
-    return;
+async function generate() {
+  if (!_apiKey) {
+    const entered = window.prompt('Enter your Anthropic API key:');
+    if (!entered || !entered.trim()) return;
+    _apiKey = entered.trim();
   }
-  document.getElementById('warning').classList.remove('show');
+  const key = _apiKey;
 
   const selected = CREATIVES.filter(c => document.getElementById('cb-' + c.id).checked);
   if (!selected.length) {
