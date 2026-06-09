@@ -6,11 +6,19 @@ No authentication is required for either endpoint.
 """
 
 import time
+import warnings
+
+# macOS system Python links LibreSSL; urllib3's warning about it is noise here.
+warnings.filterwarnings("ignore", message="urllib3 v2 only supports OpenSSL")
 
 import requests
 
 DATA_API = "https://data-api.polymarket.com"
 GAMMA_API = "https://gamma-api.polymarket.com"
+
+
+class ClientError(Exception):
+    """Non-retryable 4xx from the API (bad params, pagination depth cap)."""
 
 
 class PolymarketClient:
@@ -26,9 +34,12 @@ class PolymarketClient:
             try:
                 resp = self.http.get(url, params=params, timeout=self.timeout)
                 if resp.status_code == 429 or resp.status_code >= 500:
-                    resp.raise_for_status()
-                resp.raise_for_status()
+                    resp.raise_for_status()          # retryable
+                if 400 <= resp.status_code < 500:
+                    raise ClientError(f"{resp.status_code} for {resp.url}")
                 return resp.json()
+            except ClientError:
+                raise
             except (requests.RequestException, ValueError):
                 if attempt == self.max_retries - 1:
                     raise
@@ -38,19 +49,24 @@ class PolymarketClient:
     def iter_large_trades(self, min_cash, page_size=500, max_pages=40, taker_only=True):
         """Yield recent trades with cash value >= min_cash, newest first.
 
-        The Data API filters by notional server-side (filterType=CASH), so a
-        $10k floor means almost every page row is relevant. Pagination only
-        reaches back through the API's recent window; run ingest on a schedule
-        to accumulate deeper history in the local DB.
+        The Data API filters by notional server-side (filterType=CASH) and
+        caps pagination depth (~3,500 trades); when we hit the cap we stop
+        cleanly with whatever the API allowed. Run ingest on a schedule to
+        accumulate deeper history in the local DB.
         """
         for page in range(max_pages):
-            batch = self._get(f"{DATA_API}/trades", {
-                "limit": page_size,
-                "offset": page * page_size,
-                "takerOnly": str(bool(taker_only)).lower(),
-                "filterType": "CASH",
-                "filterAmount": int(min_cash),
-            })
+            try:
+                batch = self._get(f"{DATA_API}/trades", {
+                    "limit": page_size,
+                    "offset": page * page_size,
+                    "takerOnly": str(bool(taker_only)).lower(),
+                    "filterType": "CASH",
+                    "filterAmount": int(min_cash),
+                })
+            except ClientError:
+                if page == 0:
+                    raise
+                return    # pagination depth cap reached
             if not batch:
                 return
             yield from batch

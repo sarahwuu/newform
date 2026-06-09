@@ -29,8 +29,13 @@ def _fmt_ts(ts):
 
 def cmd_ingest(con, cfg, args):
     client = PolymarketClient()
-    added = db.upsert_trades(
-        con, client.iter_large_trades(cfg.ingest_min_cash, max_pages=args.pages))
+    try:
+        added = db.upsert_trades(
+            con, client.iter_large_trades(cfg.ingest_min_cash, max_pages=args.pages))
+    except Exception as exc:
+        con.commit()
+        print(f"(trade fetch interrupted, keeping what we got: {exc})")
+        added = "?"
     print(f"trades: +{added} new rows")
 
     missing = db.condition_ids_missing_or_unresolved(con)

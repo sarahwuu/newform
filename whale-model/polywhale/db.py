@@ -47,9 +47,17 @@ def connect(path):
 
 
 def upsert_trades(con, raw_trades):
-    """Insert Data API trade rows, ignoring duplicates. Returns rows added."""
+    """Insert Data API trade rows, ignoring duplicates. Returns rows added.
+
+    Commits every 500 rows so a network failure mid-stream never discards
+    the trades already fetched.
+    """
     inserted = 0
+    seen = 0
     for t in raw_trades:
+        seen += 1
+        if seen % 500 == 0:
+            con.commit()
         price = float(t["price"])
         size = float(t["size"])
         cur = con.execute(

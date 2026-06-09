@@ -87,6 +87,33 @@ def test_backtest_walk_forward():
           f"(noise-only control: {res_noise.roi:.1%} on {res_noise.copied} copies)")
 
 
+def test_pagination_cap_stops_cleanly():
+    from polywhale.api import ClientError, PolymarketClient
+
+    client = PolymarketClient()
+    calls = []
+
+    def fake_get(url, params):
+        calls.append(params["offset"])
+        if params["offset"] >= 1000:
+            raise ClientError("400: pagination depth cap")  # like offset=3500 live
+        return [{"id": i} for i in range(params["limit"])]
+
+    client._get = fake_get
+    got = list(client.iter_large_trades(2000, page_size=500, max_pages=10))
+    assert len(got) == 1000, f"expected 2 full pages, got {len(got)}"
+    assert calls == [0, 500, 1000], calls
+
+    # A 4xx on the FIRST page is a real error and must still raise.
+    client._get = lambda url, params: (_ for _ in ()).throw(ClientError("400"))
+    try:
+        list(client.iter_large_trades(2000))
+        raise AssertionError("first-page ClientError should propagate")
+    except ClientError:
+        pass
+    print("  api: stops cleanly at pagination cap, first-page errors still raise")
+
+
 def resolved_gamma(cond):
     """Gamma /markets shape for a resolved market where index 1 won."""
     return {
@@ -215,6 +242,7 @@ def test_rank_orders_by_total_whale_notional():
 
 if __name__ == "__main__":
     for fn in (test_scoring_separates_skill, test_backtest_walk_forward,
+               test_pagination_cap_stops_cleanly,
                test_db_roundtrip_and_signals, test_rank_orders_by_total_whale_notional):
         print(f"{fn.__name__} ...")
         fn()
