@@ -1,0 +1,7 @@
+{
+  "product_url": "https://www.target.com/p/PASTE-YOUR-PRODUCT-URL-HERE",
+  "button_texts": ["Add to cart", "Buy now", "Preorder"],
+  "poll_seconds": 3,
+  "jitter_seconds": 2,
+  "auto_add_to_cart": true
+}

@@ -1,2 +1,4 @@
 config.json
+watch_config.json
+browser-profile/
 __pycache__/
