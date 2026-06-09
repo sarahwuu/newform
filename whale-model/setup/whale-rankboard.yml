@@ -1,0 +1,41 @@
+name: Daily whale rank board
+
+on:
+  schedule:
+    - cron: "0 13 * * *"   # every day 13:00 UTC
+  workflow_dispatch: {}     # manual "Run workflow" button
+
+permissions:
+  contents: write
+
+concurrency:
+  group: whale-rankboard
+  cancel-in-progress: false
+
+jobs:
+  rankboard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r whale-model/requirements.txt
+
+      - name: Ingest latest whale trades and build top-10 board
+        working-directory: whale-model
+        run: |
+          python -m polywhale --db data/polywhale.db ingest
+          python -m polywhale --db data/polywhale.db report --top 10 \
+            --out-md RANKBOARD.md --out-html ../docs/index.html
+
+      - name: Commit updated board
+        run: |
+          git config user.name "whale-rankboard-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f whale-model/data/polywhale.db
+          git add whale-model/RANKBOARD.md docs/index.html
+          git commit -m "Daily whale rank board update" || echo "no changes to commit"
+          git push

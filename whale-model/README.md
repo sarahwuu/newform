@@ -69,8 +69,8 @@ walk-forward copy ROI; zero-edge wallets are rejected and their copy ROI is ≈ 
 
 ## The daily board
 
-A GitHub Actions workflow (`.github/workflows/whale-rankboard.yml`) runs every
-day at 13:00 UTC (plus a manual **Run workflow** button under the Actions tab):
+A GitHub Actions workflow runs every day at 13:00 UTC (plus a manual **Run
+workflow** button under the Actions tab):
 it ingests the latest whale tape into the committed database at
 `whale-model/data/polywhale.db`, rebuilds the **top-10 rank board**, and pushes:
 
@@ -79,10 +79,14 @@ it ingests the latest whale tape into the committed database at
 - **`docs/index.html`** — a styled standalone page; enable GitHub Pages
   (Settings → Pages → deploy from branch, `/docs` folder) to get it at a URL.
 
-Scheduled workflows only run from the repository's **default branch**, so the
-board goes live once this lands there. Because the DB is committed back on each
-run, history accumulates day over day — wallet track records and "fresh wallet"
-detection get sharper the longer it runs.
+**One-time setup** (automation tokens can't write workflow files): copy
+[`setup/whale-rankboard.yml`](setup/whale-rankboard.yml) to
+`.github/workflows/whale-rankboard.yml` — e.g. on GitHub: **Add file → Create
+new file**, type the path, paste the contents, commit. Scheduled workflows only
+run from the repository's **default branch**, so the board goes live once both
+the workflow and this folder land there. Because the DB is committed back on
+each run, history accumulates day over day — wallet track records and "fresh
+wallet" detection get sharper the longer it runs.
 
 ## Operating it
 
