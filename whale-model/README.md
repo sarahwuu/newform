@@ -36,12 +36,20 @@ stable, and the z-score tells you whether the record could plausibly be luck.
 pip install -r requirements.txt
 
 python -m polywhale ingest      # pull recent ≥$10k trades + market resolutions
+python -m polywhale rank        # open bets ranked by total whale dollars
 python -m polywhale score       # rank whale wallets (alpha, z, ROI, smart flag)
 python -m polywhale signals     # open markets where smart whales hold fresh longshots
 python -m polywhale backtest    # walk-forward copy-trade simulation
 ```
 
 Flags: `--min-cash 25000`, `--max-price 0.10`, `--db path.db` work on every command.
+
+**`rank` is the consensus view:** every open market/outcome with criteria-fitting
+trades (≥ $10k at < 20¢), ranked by **total notional wagered across all whales** —
+with whale count, trade count, weighted average entry, and how much of the pile
+comes from statistically qualified wallets (`[smart]`). `--days` controls the
+lookback window, `--wallets` how many top wallets are shown per bet. `signals`
+is the stricter cut of the same data: only bets backed by proven whales.
 
 The **backtest** is strictly walk-forward: at each historical bet it asks whether
 the wallet *already* qualified using only markets resolved before that moment,

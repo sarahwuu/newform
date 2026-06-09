@@ -1,6 +1,7 @@
 """Command-line interface.
 
   python -m polywhale ingest     # pull recent >=$10k trades + market resolutions
+  python -m polywhale rank       # open bets ranked by total whale dollars
   python -m polywhale score      # rank whale wallets by longshot skill
   python -m polywhale signals    # open markets where smart whales are positioned
   python -m polywhale backtest   # walk-forward copy-trade simulation
@@ -15,6 +16,7 @@ from .api import PolymarketClient
 from .backtest import walk_forward
 from .config import Config
 from .model import score_wallets
+from .rank import rank_bets
 from .signals import generate
 
 
@@ -36,6 +38,28 @@ def cmd_ingest(con, cfg, args):
         print(f"markets: refreshed {len(markets)} of {len(missing)} unresolved")
     total = con.execute("SELECT COUNT(*) c FROM trades").fetchone()["c"]
     print(f"db now holds {total} whale trades")
+
+
+def cmd_rank(con, cfg, args):
+    bets = rank_bets(con, cfg, window_days=args.days)
+    if not bets:
+        print("no open whale longshot bets in window — run `ingest` first or widen --days")
+        return
+    print(f"open bets ranked by total whale notional "
+          f"(>= ${cfg.min_cash:,.0f}/trade, entry < {cfg.max_price:.2f}, "
+          f"last {args.days or cfg.signal_window_days}d)\n")
+    for i, b in enumerate(bets[:args.top], 1):
+        print(f"{i:>2}. {b.title}  ->  {b.outcome}")
+        print(f"    total ${b.total_notional:,.0f} across {b.n_whales} whales"
+              f" ({b.n_trades} trades)"
+              f" | smart money ${b.smart_notional:,.0f}"
+              f" | avg entry {b.weighted_entry:.2f}"
+              f" | latest {_fmt_ts(b.latest_ts)}")
+        for name, cash, is_smart in b.top_wallets[:args.wallets]:
+            print(f"      {name:<24} ${cash:,.0f}{'  [smart]' if is_smart else ''}")
+        if b.event_slug:
+            print(f"    https://polymarket.com/event/{b.event_slug}")
+        print()
 
 
 def cmd_score(con, cfg, args):
@@ -97,6 +121,11 @@ def main():
     p = sub.add_parser("ingest", help="pull recent large trades + resolutions")
     p.add_argument("--pages", type=int, default=40)
 
+    p = sub.add_parser("rank", help="open bets ranked by total whale dollars")
+    p.add_argument("--top", type=int, default=20)
+    p.add_argument("--days", type=int, default=None, help="lookback window (default config)")
+    p.add_argument("--wallets", type=int, default=3, help="top wallets shown per bet")
+
     p = sub.add_parser("score", help="rank whale wallets")
     p.add_argument("--top", type=int, default=30)
 
@@ -116,7 +145,7 @@ def main():
         cfg.max_price = args.max_price
 
     con = db.connect(cfg.db_path)
-    {"ingest": cmd_ingest, "score": cmd_score,
+    {"ingest": cmd_ingest, "rank": cmd_rank, "score": cmd_score,
      "signals": cmd_signals, "backtest": cmd_backtest}[args.command](con, cfg, args)
 
 

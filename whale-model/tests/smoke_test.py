@@ -22,6 +22,7 @@ from polywhale import db
 from polywhale.backtest import walk_forward
 from polywhale.config import Config
 from polywhale.model import score_wallets
+from polywhale.rank import rank_bets
 from polywhale.signals import generate
 
 rng = random.Random(42)
@@ -118,9 +119,51 @@ def test_db_roundtrip_and_signals():
               f"1 signal @ ${sigs[0].smart_notional:,.0f} smart notional")
 
 
+def test_rank_orders_by_total_whale_notional():
+    def raw(tx, wallet, cond, cash_at_10c, ts=1_900_000_000, outcome="Yes"):
+        return {
+            "transactionHash": tx, "proxyWallet": wallet, "conditionId": cond,
+            "outcomeIndex": 1, "outcome": outcome, "side": "BUY", "price": 0.10,
+            "size": cash_at_10c / 0.10, "timestamp": ts,
+            "title": f"Market {cond}", "eventSlug": f"event-{cond}",
+            "pseudonym": wallet,
+        }
+
+    with tempfile.TemporaryDirectory() as tmp:
+        con = db.connect(os.path.join(tmp, "t.db"))
+        # Smart-whale history: 8 resolved wins at 10c for whale-a.
+        history = [raw(f"0xh{i}", "whale-a", "0xresolved", 12_000,
+                       ts=1_800_000_000 + i) for i in range(8)]
+        db.upsert_trades(con, history)
+        db.upsert_market(con, {
+            "conditionId": "0xresolved", "question": "old", "category": "Sports",
+            "closed": True, "outcomePrices": '["0", "1"]',
+            "endDate": "2026-01-01T00:00:00Z",
+        })
+        # Open bets: market B gets $90k across two whales, market A gets $50k
+        # from the smart whale alone.
+        db.upsert_trades(con, [
+            raw("0xa1", "whale-a", "0xmktA", 50_000),
+            raw("0xb1", "whale-b", "0xmktB", 60_000),
+            raw("0xb2", "whale-c", "0xmktB", 30_000),
+        ])
+
+        cfg = Config(signal_window_days=10_000_000)
+        bets = rank_bets(con, cfg)
+        assert [b.condition_id for b in bets] == ["0xmktB", "0xmktA"], \
+            [b.condition_id for b in bets]
+        assert bets[0].total_notional == 90_000 and bets[0].n_whales == 2
+        assert bets[0].smart_notional == 0          # b and c have no record
+        assert bets[1].smart_notional == 50_000     # whale-a qualified
+        assert bets[1].top_wallets[0][2] is True    # flagged smart
+        print(f"  rank: order by total notional ok "
+              f"(${bets[0].total_notional:,.0f} > ${bets[1].total_notional:,.0f}), "
+              f"smart split ok")
+
+
 if __name__ == "__main__":
     for fn in (test_scoring_separates_skill, test_backtest_walk_forward,
-               test_db_roundtrip_and_signals):
+               test_db_roundtrip_and_signals, test_rank_orders_by_total_whale_notional):
         print(f"{fn.__name__} ...")
         fn()
     print("\nall smoke tests passed")
