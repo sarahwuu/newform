@@ -1,0 +1,17 @@
+{
+  "store_url": "https://www.saucedemo.com",
+  "login": {
+    "username": "standard_user",
+    "password": "secret_sauce"
+  },
+  "product_name": "Sauce Labs Backpack",
+  "shipping": {
+    "first_name": "Sarah",
+    "last_name": "Wu",
+    "postal_code": "94105"
+  },
+  "poll_seconds": 5,
+  "max_attempts": 60,
+  "dry_run": true,
+  "headless": false
+}
