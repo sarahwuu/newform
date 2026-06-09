@@ -77,12 +77,60 @@ walk-forward copy ROI; zero-edge wallets are rejected and their copy ROI is ≈ 
   [Dune Analytics](https://dune.com/datadashboards/prediction-markets) and load it
   into the `trades` table — the model code doesn't care where rows came from.
 
-## Honest caveats
+## Nuances & threat model
 
-- **Selection effects:** a whale buying 15¢ may be hedging an opposite position
-  elsewhere, market-making, or exiting via a wash — the tape can't tell you intent.
-- **Longshot bias is real:** the literature says retail *overpays* for longshots,
-  so the average sub-20¢ buy is −EV. The whole edge here is conditioning on wallets
-  with statistically proven records — copy the qualified set, never the firehose.
-- **Capacity:** these books are thin; copying a $50k whale entry moves the price.
-  Signals are best treated as research input, not auto-execution.
+The thesis "big money on small odds = someone knows something" is *sometimes*
+right (documented cases exist: pre-announcement buying on Nobel Peace Prize and
+pardon markets). But the tape is full of things that look like insider conviction
+and aren't. What the model does about each:
+
+**Fills are not bets.** A whale sweeping the book in 10 fills made one decision.
+Scoring aggregates fills into positions per (wallet, market, outcome) with a
+share-weighted entry — otherwise the biggest traders get fake sample sizes and
+inflated z-scores.
+
+**Luck looks like skill at scale.** Scan 10,000 wallets and z ≥ 1 anoints ~1,600
+zero-edge gamblers. Defaults are min 8 resolved positions and z ≥ 2.0; raise
+them further as your DB grows. This is also the direct answer to "rich idiots
+who gamble": they fail the z-test, because winning *a lot by count* is not the
+bar — winning **more than entry prices imply** is. (A great longshot whale still
+loses most bets; 30% hits on 10¢ entries is a 3× edge.)
+
+**Insiders use burner wallets.** A track-record filter can never catch the
+sharpest pattern: fresh wallet, one huge longshot, right before resolution.
+`rank` flags it instead of filtering for it — `fresh` wallet tags, the share of
+money that arrived in the last 24h, and time until the market's scheduled end.
+Fresh + late + concentrated is the burner-insider signature. (Caveat: "fresh"
+is judged against your local DB window, so backfill history before trusting it.)
+
+**Conviction can be a hedge.** Buying 15¢ on one outcome while holding other
+outcomes of the same event is rebalancing or sum-of-longshots arbitrage, not a
+view. Wallets that also traded other outcomes of the event get a `hedged` tag.
+
+**A sub-20¢ "BUY" isn't always an entry.** On a binary CLOB, buying YES at 12¢
+is mechanically selling NO at 88¢ — some prints are unwinds of the other side.
+Cross-checking the Data API `/positions` endpoint to confirm the wallet still
+holds the position is the upgrade path here.
+
+**Whale-watching is reflexive.** Copy-trading tools mean one whale's entry gets
+echoed by bots within minutes (inflating "distinct whale" counts), and the
+strategy can be deliberately baited: pump a longshot to create the appearance of
+smart money, then exit into the copiers. Entry-time clustering across wallets is
+a warning sign, and the drift-vs-entry column tells you when you're the exit
+liquidity.
+
+**Resolution is a rules game.** Some whales buy cheap YES because they've read
+the resolution criteria and see a technicality, and UMA disputes can resolve
+against the spirit of the question. Never copy a bet without reading the rules.
+
+**Statistical honesty.** Bets within one event resolve together (correlated, so
+z is overstated for event-concentrated wallets); the backtest uses scheduled end
+date as the resolution timestamp; and your DB only sees the tape since you
+started ingesting — early losses of "proven" wallets may be invisible
+(survivorship). Backfilling from Dune mitigates the last one.
+
+**Execution.** Books are thin — the whale's entry already moved the price, and
+your size will too. Polymarket access is geo-restricted in some jurisdictions;
+trading on copied signals that ultimately derive from material non-public
+information can carry legal risk depending on where you are and the market.
+Treat the board as a screener for homework, size small, never auto-execute.

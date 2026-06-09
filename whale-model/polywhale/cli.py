@@ -9,6 +9,7 @@
 
 import argparse
 import sys
+import time
 from datetime import datetime, timezone
 
 from . import db
@@ -54,6 +55,7 @@ def cmd_rank(con, cfg, args):
     print(f"open bets ranked by total whale notional "
           f"(>= ${cfg.min_cash:,.0f}/trade, entry < {cfg.max_price:.2f}, "
           f"last {args.days or cfg.signal_window_days}d)\n")
+    now_ts = int(time.time())
     for i, b in enumerate(shown, 1):
         if b.current_price is None:
             now = "now n/a"
@@ -66,8 +68,23 @@ def cmd_rank(con, cfg, args):
               f" | smart money ${b.smart_notional:,.0f}"
               f" | avg entry {b.weighted_entry:.2f} | {now}"
               f" | latest {_fmt_ts(b.latest_ts)}")
-        for name, cash, is_smart in b.top_wallets[:args.wallets]:
-            print(f"      {name:<24} ${cash:,.0f}{'  [smart]' if is_smart else ''}")
+        patterns = []
+        if b.end_ts:
+            days = (b.end_ts - now_ts) / 86400
+            patterns.append(f"ends in {days:.1f}d" if days >= 0 else "past scheduled end")
+        if b.total_notional:
+            if b.burst_notional / b.total_notional >= 0.5:
+                patterns.append(f"{b.burst_notional / b.total_notional:.0%} of money "
+                                f"arrived in last {cfg.burst_hours}h")
+            if b.fresh_notional / b.total_notional >= 0.3:
+                patterns.append(f"{b.fresh_notional / b.total_notional:.0%} from "
+                                f"fresh wallets")
+        if patterns:
+            print(f"    pattern: {' | '.join(patterns)}")
+        for name, cash, is_smart, tags in b.top_wallets[:args.wallets]:
+            labels = (["smart"] if is_smart else []) + ([tags] if tags else [])
+            suffix = f"  [{', '.join(labels)}]" if labels else ""
+            print(f"      {name:<24} ${cash:,.0f}{suffix}")
         if b.event_slug:
             print(f"    https://polymarket.com/event/{b.event_slug}")
         print()

@@ -25,12 +25,15 @@ class RankedBet:
     event_slug: str
     total_notional: float = 0.0       # all whale dollars on this outcome
     smart_notional: float = 0.0       # portion from qualified ("smart") whales
+    fresh_notional: float = 0.0       # portion from wallets with ~no history (burner pattern)
+    burst_notional: float = 0.0       # portion that arrived within the last burst_hours
     n_trades: int = 0
     n_whales: int = 0
     weighted_entry: float = 0.0       # notional-weighted avg entry price
     latest_ts: int = 0
+    end_ts: int = None                # scheduled market end (insider bets cluster near it)
     current_price: float = None       # live market price (None when offline)
-    top_wallets: list = field(default_factory=list)  # (name, cash, is_smart)
+    top_wallets: list = field(default_factory=list)  # (name, cash, is_smart, tags)
 
 
 def rank_bets(con, cfg, window_days=None):
@@ -47,29 +50,46 @@ def rank_bets(con, cfg, window_days=None):
     for t in db.open_longshot_buys(con, cfg.max_price, since):
         grouped[(t["condition_id"], t["outcome"])].append(t)
 
+    now = int(time.time())
+    burst_cutoff = now - cfg.burst_hours * 3600
     ranked = []
     for (condition_id, outcome), trades in grouped.items():
         notional = sum(t["cash"] for t in trades)
+        event_slug = trades[0]["event_slug"] or ""
+        outcome_index = trades[0]["outcome_index"]
         per_wallet = defaultdict(float)
         for t in trades:
             per_wallet[(t["pseudonym"] or t["wallet"], t["wallet"])] += t["cash"]
+
+        fresh_notional = 0.0
+        wallets = []
+        for (name, wallet), cash in per_wallet.items():
+            tags = []
+            if db.wallet_fill_count(con, wallet) <= cfg.fresh_wallet_max_fills:
+                tags.append("fresh")     # burner-wallet pattern (see caveat in README)
+                fresh_notional += cash
+            if db.wallet_other_bets_in_event(con, wallet, event_slug,
+                                             condition_id, outcome_index, since):
+                tags.append("hedged")    # also bought other outcomes of this event
+            wallets.append((name, cash, wallet in smart, ",".join(tags)))
+        wallets.sort(key=lambda w: -w[1])
+
         ranked.append(RankedBet(
             condition_id=condition_id,
             title=trades[0]["title"] or condition_id,
             outcome=outcome or "?",
-            outcome_index=trades[0]["outcome_index"],
-            event_slug=trades[0]["event_slug"] or "",
+            outcome_index=outcome_index,
+            event_slug=event_slug,
             total_notional=notional,
             smart_notional=sum(t["cash"] for t in trades if t["wallet"] in smart),
+            fresh_notional=fresh_notional,
+            burst_notional=sum(t["cash"] for t in trades if t["ts"] >= burst_cutoff),
             n_trades=len(trades),
             n_whales=len(per_wallet),
             weighted_entry=sum(t["cash"] * t["price"] for t in trades) / notional,
             latest_ts=max(t["ts"] for t in trades),
-            top_wallets=sorted(
-                ((name, cash, wallet in smart)
-                 for (name, wallet), cash in per_wallet.items()),
-                key=lambda w: -w[1],
-            ),
+            end_ts=trades[0]["end_ts"],
+            top_wallets=wallets,
         ))
     ranked.sort(key=lambda b: -b.total_notional)
     return ranked

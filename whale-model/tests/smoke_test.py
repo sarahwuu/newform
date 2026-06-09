@@ -55,12 +55,15 @@ def test_scoring_separates_skill():
     top5 = {s.wallet for s in scores[:5]}
     assert top5 == {f"sharp-{w}" for w in range(5)}, f"top5 was {top5}"
 
+    # z >= 2.0 trades recall for precision: a real sharp with a short record
+    # can miss the bar, but almost no zero-edge gambler should clear it.
     qualified = {s.wallet for s in scores if s.qualifies(CFG)}
     sharps_found = sum(1 for w in qualified if w.startswith("sharp"))
     noise_found = sum(1 for w in qualified if w.startswith("noise"))
-    assert sharps_found == 5, f"only {sharps_found}/5 sharps qualified"
-    assert noise_found <= 4, f"{noise_found}/20 zero-edge wallets qualified"
-    print(f"  scoring: 5/5 sharps on top, {noise_found}/20 noise false positives")
+    assert sharps_found >= 4, f"only {sharps_found}/5 sharps qualified"
+    assert noise_found <= 1, f"{noise_found}/20 zero-edge wallets qualified"
+    print(f"  scoring: 5/5 sharps on top, {sharps_found}/5 qualified, "
+          f"{noise_found}/20 noise false positives")
 
 
 def test_backtest_walk_forward():
@@ -83,79 +86,99 @@ def test_backtest_walk_forward():
           f"(noise-only control: {res_noise.roi:.1%} on {res_noise.copied} copies)")
 
 
+def resolved_gamma(cond):
+    """Gamma /markets shape for a resolved market where index 1 won."""
+    return {
+        "conditionId": cond, "question": "Old market", "category": "Politics",
+        "closed": True, "outcomePrices": '["0", "1"]',
+        "endDate": "2026-01-01T00:00:00Z",
+    }
+
+
 def test_db_roundtrip_and_signals():
     raw_trade = {  # Data API /trades shape
         "transactionHash": "0xabc", "proxyWallet": "0xWALLET",
-        "conditionId": "0xcond1", "outcomeIndex": 1, "outcome": "Yes",
+        "conditionId": "0xcond-open", "outcomeIndex": 1, "outcome": "Yes",
         "side": "BUY", "price": 0.12, "size": 100_000,
         "timestamp": 1_900_000_000, "title": "Will X happen?",
         "eventSlug": "will-x-happen", "pseudonym": "Test-Whale",
     }
-    gamma_market = {  # Gamma API /markets shape (resolved, index 1 won)
-        "conditionId": "0xcond0", "question": "Old market", "category": "Politics",
-        "closed": True, "outcomePrices": '["0", "1"]',
-        "endDate": "2026-01-01T00:00:00Z",
-    }
     with tempfile.TemporaryDirectory() as tmp:
         con = db.connect(os.path.join(tmp, "t.db"))
-        # History: 8 resolved wins at 12c for the same wallet -> qualifies.
-        history = []
-        for i in range(8):
-            h = dict(raw_trade, transactionHash=f"0xh{i}", conditionId="0xcond0",
-                     timestamp=1_800_000_000 + i)
-            history.append(h)
+        # History: wins on 8 DISTINCT markets -> 8 resolved positions.
+        history = [dict(raw_trade, transactionHash=f"0xh{i}",
+                        conditionId=f"0xcond{i}", timestamp=1_800_000_000 + i)
+                   for i in range(8)]
+        # Second fill on market 0 at a different price: must merge into ONE
+        # position with a share-weighted entry, not count as a 9th bet.
+        history.append(dict(raw_trade, transactionHash="0xh0b",
+                            conditionId="0xcond0", price=0.10, size=100_000,
+                            timestamp=1_800_000_100))
         added = db.upsert_trades(con, history + [raw_trade, raw_trade])
-        assert added == 9, f"dedupe failed: {added}"
-        db.upsert_market(con, gamma_market)
+        assert added == 10, f"dedupe failed: {added}"
+        for i in range(8):
+            db.upsert_market(con, resolved_gamma(f"0xcond{i}"))
 
-        resolved = db.resolved_longshot_buys(con, CFG.max_price)
-        assert len(resolved) == 8 and all(r["won"] for r in resolved)
+        positions = db.resolved_longshot_buys(con, CFG.max_price)
+        assert len(positions) == 8 and all(r["won"] for r in positions)
+        merged = [r for r in positions if r["condition_id"] == "0xcond0"][0]
+        assert merged["fills"] == 2 and merged["cash"] == 22_000
+        assert abs(merged["price"] - 0.11) < 1e-9  # (12k + 10k) / 200k shares
 
         cfg = Config(signal_window_days=10_000_000)  # huge window for fixed ts
         sigs = generate(con, cfg)
         assert len(sigs) == 1 and sigs[0].outcome == "Yes"
         assert sigs[0].smart_notional == 0.12 * 100_000
-        print(f"  db+signals: dedupe ok, resolution join ok, "
+        print(f"  db+signals: dedupe ok, fill->position aggregation ok "
+              f"(2 fills -> 1 bet @ {merged['price']:.2f}), "
               f"1 signal @ ${sigs[0].smart_notional:,.0f} smart notional")
 
 
 def test_rank_orders_by_total_whale_notional():
-    def raw(tx, wallet, cond, cash_at_10c, ts=1_900_000_000, outcome="Yes"):
+    def raw(tx, wallet, cond, cash_at_10c, ts=1_900_000_000, outcome="Yes",
+            outcome_index=1, event=None):
         return {
             "transactionHash": tx, "proxyWallet": wallet, "conditionId": cond,
-            "outcomeIndex": 1, "outcome": outcome, "side": "BUY", "price": 0.10,
-            "size": cash_at_10c / 0.10, "timestamp": ts,
-            "title": f"Market {cond}", "eventSlug": f"event-{cond}",
+            "outcomeIndex": outcome_index, "outcome": outcome, "side": "BUY",
+            "price": 0.10, "size": cash_at_10c / 0.10, "timestamp": ts,
+            "title": f"Market {cond}", "eventSlug": event or f"event-{cond}",
             "pseudonym": wallet,
         }
 
     with tempfile.TemporaryDirectory() as tmp:
         con = db.connect(os.path.join(tmp, "t.db"))
-        # Smart-whale history: 8 resolved wins at 10c for whale-a.
-        history = [raw(f"0xh{i}", "whale-a", "0xresolved", 12_000,
+        # Smart-whale history: wins on 8 distinct resolved markets for whale-a.
+        history = [raw(f"0xh{i}", "whale-a", f"0xres{i}", 12_000,
                        ts=1_800_000_000 + i) for i in range(8)]
         db.upsert_trades(con, history)
-        db.upsert_market(con, {
-            "conditionId": "0xresolved", "question": "old", "category": "Sports",
-            "closed": True, "outcomePrices": '["0", "1"]',
-            "endDate": "2026-01-01T00:00:00Z",
-        })
+        for i in range(8):
+            db.upsert_market(con, resolved_gamma(f"0xres{i}"))
         # Open bets: market B gets $90k across two whales, market A gets $50k
-        # from the smart whale alone.
+        # from the smart whale alone. whale-c also buys the OTHER side of B's
+        # event (a hedge), and b/c have no other history (fresh wallets).
         db.upsert_trades(con, [
             raw("0xa1", "whale-a", "0xmktA", 50_000),
             raw("0xb1", "whale-b", "0xmktB", 60_000),
             raw("0xb2", "whale-c", "0xmktB", 30_000),
+            raw("0xb3", "whale-c", "0xmktB2", 11_000, outcome="No",
+                outcome_index=0, event="event-0xmktB"),
         ])
 
         cfg = Config(signal_window_days=10_000_000)
         bets = rank_bets(con, cfg)
-        assert [b.condition_id for b in bets] == ["0xmktB", "0xmktA"], \
+        assert [b.condition_id for b in bets][:2] == ["0xmktB", "0xmktA"], \
             [b.condition_id for b in bets]
         assert bets[0].total_notional == 90_000 and bets[0].n_whales == 2
         assert bets[0].smart_notional == 0          # b and c have no record
         assert bets[1].smart_notional == 50_000     # whale-a qualified
         assert bets[1].top_wallets[0][2] is True    # flagged smart
+
+        # Insider-pattern flags: b and c are fresh; c hedged across the event.
+        assert bets[0].fresh_notional == 90_000
+        tags = {name: t for name, _, _, t in bets[0].top_wallets}
+        assert tags["whale-b"] == "fresh"
+        assert tags["whale-c"] == "fresh,hedged"
+        assert bets[1].fresh_notional == 0          # whale-a has 9 fills of history
 
         class StubClient:  # Gamma response for live (unresolved) markets
             def markets_by_condition_ids(self, ids):

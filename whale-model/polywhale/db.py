@@ -132,15 +132,29 @@ def condition_ids_missing_or_unresolved(con):
 
 
 def resolved_longshot_buys(con, max_price):
-    """Whale longshot BUYs joined to their market's final outcome."""
+    """Whale longshot POSITIONS joined to their market's final outcome.
+
+    Fills are aggregated per (wallet, market, outcome): a whale sweeping the
+    book in ten fills made ONE bet, not ten. Treating fills as independent
+    would inflate sample size and z-scores for exactly the wallets that trade
+    biggest. `price` is the share-weighted average entry; `ts` is the first
+    fill (the moment the information, if any, was acted on).
+    """
     return con.execute(
-        """SELECT t.wallet, t.pseudonym, t.price, t.cash, t.ts, t.title,
+        """SELECT t.wallet, MAX(t.pseudonym) AS pseudonym,
+                  t.condition_id,
+                  COUNT(*) AS fills,
+                  SUM(t.cash) AS cash,
+                  SUM(t.cash) / SUM(t.size) AS price,
+                  MIN(t.ts) AS ts,
+                  MAX(t.title) AS title,
                   m.end_ts,
                   (t.outcome_index = m.winning_index) AS won
            FROM trades t
            JOIN markets m ON m.condition_id = t.condition_id
            WHERE t.side = 'BUY' AND t.price < ? AND m.resolved = 1
-           ORDER BY t.ts""",
+           GROUP BY t.wallet, t.condition_id, t.outcome_index
+           ORDER BY MIN(t.ts)""",
         (max_price,),
     ).fetchall()
 
@@ -149,7 +163,8 @@ def open_longshot_buys(con, max_price, since_ts):
     """Recent whale longshot BUYs on markets that have not resolved yet."""
     return con.execute(
         """SELECT t.wallet, t.pseudonym, t.condition_id, t.outcome,
-                  t.outcome_index, t.price, t.cash, t.ts, t.title, t.event_slug
+                  t.outcome_index, t.price, t.cash, t.ts, t.title, t.event_slug,
+                  m.end_ts
            FROM trades t
            LEFT JOIN markets m ON m.condition_id = t.condition_id
            WHERE t.side = 'BUY' AND t.price < ?
@@ -158,3 +173,27 @@ def open_longshot_buys(con, max_price, since_ts):
            ORDER BY t.ts DESC""",
         (max_price, since_ts),
     ).fetchall()
+
+
+def wallet_fill_count(con, wallet):
+    """Total fills we have ever seen from this wallet (any side, any price)."""
+    return con.execute(
+        "SELECT COUNT(*) c FROM trades WHERE wallet = ?", (wallet,)
+    ).fetchone()["c"]
+
+
+def wallet_other_bets_in_event(con, wallet, event_slug, condition_id,
+                               outcome_index, since_ts):
+    """Fills by the same wallet on OTHER outcomes of the same event.
+
+    Non-zero means the 'conviction' bet may be one leg of a hedge or a
+    sum-of-longshots arbitrage rather than a directional view.
+    """
+    if not event_slug:
+        return 0
+    return con.execute(
+        """SELECT COUNT(*) c FROM trades
+           WHERE wallet = ? AND event_slug = ? AND ts >= ?
+             AND (condition_id != ? OR outcome_index != ?)""",
+        (wallet, event_slug, since_ts, condition_id, outcome_index),
+    ).fetchone()["c"]
