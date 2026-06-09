@@ -23,6 +23,7 @@ from polywhale.backtest import walk_forward
 from polywhale.config import Config
 from polywhale.model import score_wallets
 from polywhale.rank import attach_live_prices, rank_bets
+from polywhale.report import build_html, build_markdown
 from polywhale.signals import generate
 
 rng = random.Random(42)
@@ -187,10 +188,17 @@ def test_rank_orders_by_total_whale_notional():
         attach_live_prices(bets, StubClient())
         assert bets[0].current_price == 0.18        # outcome_index 1
         assert bets[1].current_price is None        # not returned -> stays offline
+
+        md = build_markdown(bets[:10], cfg, now_ts=1_900_000_500)
+        html_out = build_html(bets[:10], cfg, now_ts=1_900_000_500)
+        assert "| 1 | [Market 0xmktB" in md and "$90,000" in md
+        assert "0.18 (+0.08)" in md                 # live drift in the board
+        assert "<table>" in html_out and "$90,000" in html_out
         print(f"  rank: order by total notional ok "
               f"(${bets[0].total_notional:,.0f} > ${bets[1].total_notional:,.0f}), "
               f"smart split ok, live price attach ok "
-              f"(entry {bets[0].weighted_entry:.2f} -> now {bets[0].current_price:.2f})")
+              f"(entry {bets[0].weighted_entry:.2f} -> now {bets[0].current_price:.2f}), "
+              f"md+html report ok")
 
 
 if __name__ == "__main__":

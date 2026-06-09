@@ -67,6 +67,23 @@ then copies with a fixed stake. No hindsight leaks into the decision.
 with known skill. Wallets with a true 2× edge all rank top and produce +50%+
 walk-forward copy ROI; zero-edge wallets are rejected and their copy ROI is ≈ −fees.
 
+## The daily board
+
+A GitHub Actions workflow (`.github/workflows/whale-rankboard.yml`) runs every
+day at 13:00 UTC (plus a manual **Run workflow** button under the Actions tab):
+it ingests the latest whale tape into the committed database at
+`whale-model/data/polywhale.db`, rebuilds the **top-10 rank board**, and pushes:
+
+- **[`whale-model/RANKBOARD.md`](RANKBOARD.md)** — open it on GitHub, it renders
+  as the daily board.
+- **`docs/index.html`** — a styled standalone page; enable GitHub Pages
+  (Settings → Pages → deploy from branch, `/docs` folder) to get it at a URL.
+
+Scheduled workflows only run from the repository's **default branch**, so the
+board goes live once this lands there. Because the DB is committed back on each
+run, history accumulates day over day — wallet track records and "fresh wallet"
+detection get sharper the longer it runs.
+
 ## Operating it
 
 - The Data API only pages back through a recent window of the tape. **Run

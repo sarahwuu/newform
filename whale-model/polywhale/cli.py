@@ -2,6 +2,7 @@
 
   python -m polywhale ingest     # pull recent >=$10k trades + market resolutions
   python -m polywhale rank       # open bets ranked by total whale dollars
+  python -m polywhale report     # write the top-10 board to Markdown + HTML
   python -m polywhale score      # rank whale wallets by longshot skill
   python -m polywhale signals    # open markets where smart whales are positioned
   python -m polywhale backtest   # walk-forward copy-trade simulation
@@ -18,6 +19,7 @@ from .backtest import walk_forward
 from .config import Config
 from .model import score_wallets
 from .rank import attach_live_prices, rank_bets
+from .report import build_html, build_markdown
 from .signals import generate
 
 
@@ -90,6 +92,21 @@ def cmd_rank(con, cfg, args):
         print()
 
 
+def cmd_report(con, cfg, args):
+    bets = rank_bets(con, cfg, window_days=args.days)[:args.top]
+    if not args.no_live:
+        try:
+            attach_live_prices(bets, PolymarketClient())
+        except Exception as exc:
+            print(f"(live prices unavailable: {exc})")
+    now_ts = int(time.time())
+    with open(args.out_md, "w") as f:
+        f.write(build_markdown(bets, cfg, now_ts))
+    with open(args.out_html, "w") as f:
+        f.write(build_html(bets, cfg, now_ts))
+    print(f"wrote {len(bets)} bets -> {args.out_md}, {args.out_html}")
+
+
 def cmd_score(con, cfg, args):
     scores = score_wallets(
         db.resolved_longshot_buys(con, cfg.max_price), cfg.prior_strength)
@@ -156,6 +173,13 @@ def main():
     p.add_argument("--no-live", action="store_true",
                    help="skip fetching current prices from Gamma")
 
+    p = sub.add_parser("report", help="write top-N board to Markdown + HTML")
+    p.add_argument("--top", type=int, default=10)
+    p.add_argument("--days", type=int, default=None)
+    p.add_argument("--out-md", default="RANKBOARD.md")
+    p.add_argument("--out-html", default="board.html")
+    p.add_argument("--no-live", action="store_true")
+
     p = sub.add_parser("score", help="rank whale wallets")
     p.add_argument("--top", type=int, default=30)
 
@@ -175,8 +199,9 @@ def main():
         cfg.max_price = args.max_price
 
     con = db.connect(cfg.db_path)
-    {"ingest": cmd_ingest, "rank": cmd_rank, "score": cmd_score,
-     "signals": cmd_signals, "backtest": cmd_backtest}[args.command](con, cfg, args)
+    {"ingest": cmd_ingest, "rank": cmd_rank, "report": cmd_report,
+     "score": cmd_score, "signals": cmd_signals,
+     "backtest": cmd_backtest}[args.command](con, cfg, args)
 
 
 if __name__ == "__main__":
