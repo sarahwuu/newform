@@ -47,9 +47,17 @@ Flags: `--min-cash 25000`, `--max-price 0.10`, `--db path.db` work on every comm
 **`rank` is the consensus view:** every open market/outcome with criteria-fitting
 trades (≥ $10k at < 20¢), ranked by **total notional wagered across all whales** —
 with whale count, trade count, weighted average entry, and how much of the pile
-comes from statistically qualified wallets (`[smart]`). `--days` controls the
-lookback window, `--wallets` how many top wallets are shown per bet. `signals`
-is the stricter cut of the same data: only bets backed by proven whales.
+comes from statistically qualified wallets (`[smart]`). It also fetches the
+**current Gamma price** and shows the drift vs. the whales' average entry, so you
+can tell a bet you can still join from one you'd be chasing (`--no-live` skips
+the fetch). `--days` controls the lookback window, `--wallets` how many top
+wallets are shown per bet. `signals` is the stricter cut of the same data: only
+bets backed by proven whales.
+
+**Freshness:** the Data API is the live tape — fills appear within seconds — so
+the board is as current as your last `ingest`. Run it on a schedule and re-run
+`rank` whenever you're about to act; the current-price column is fetched at
+display time, not ingest time.
 
 The **backtest** is strictly walk-forward: at each historical bet it asks whether
 the wallet *already* qualified using only markets resolved before that moment,

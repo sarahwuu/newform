@@ -148,8 +148,8 @@ def resolved_longshot_buys(con, max_price):
 def open_longshot_buys(con, max_price, since_ts):
     """Recent whale longshot BUYs on markets that have not resolved yet."""
     return con.execute(
-        """SELECT t.wallet, t.pseudonym, t.condition_id, t.outcome, t.price,
-                  t.cash, t.ts, t.title, t.event_slug
+        """SELECT t.wallet, t.pseudonym, t.condition_id, t.outcome,
+                  t.outcome_index, t.price, t.cash, t.ts, t.title, t.event_slug
            FROM trades t
            LEFT JOIN markets m ON m.condition_id = t.condition_id
            WHERE t.side = 'BUY' AND t.price < ?

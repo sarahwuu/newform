@@ -16,7 +16,7 @@ from .api import PolymarketClient
 from .backtest import walk_forward
 from .config import Config
 from .model import score_wallets
-from .rank import rank_bets
+from .rank import attach_live_prices, rank_bets
 from .signals import generate
 
 
@@ -45,15 +45,26 @@ def cmd_rank(con, cfg, args):
     if not bets:
         print("no open whale longshot bets in window — run `ingest` first or widen --days")
         return
+    shown = bets[:args.top]
+    if not args.no_live:
+        try:
+            attach_live_prices(shown, PolymarketClient())
+        except Exception as exc:
+            print(f"(live prices unavailable: {exc})\n")
     print(f"open bets ranked by total whale notional "
           f"(>= ${cfg.min_cash:,.0f}/trade, entry < {cfg.max_price:.2f}, "
           f"last {args.days or cfg.signal_window_days}d)\n")
-    for i, b in enumerate(bets[:args.top], 1):
+    for i, b in enumerate(shown, 1):
+        if b.current_price is None:
+            now = "now n/a"
+        else:
+            drift = b.current_price - b.weighted_entry
+            now = f"now {b.current_price:.2f} ({drift:+.2f} vs whales)"
         print(f"{i:>2}. {b.title}  ->  {b.outcome}")
         print(f"    total ${b.total_notional:,.0f} across {b.n_whales} whales"
               f" ({b.n_trades} trades)"
               f" | smart money ${b.smart_notional:,.0f}"
-              f" | avg entry {b.weighted_entry:.2f}"
+              f" | avg entry {b.weighted_entry:.2f} | {now}"
               f" | latest {_fmt_ts(b.latest_ts)}")
         for name, cash, is_smart in b.top_wallets[:args.wallets]:
             print(f"      {name:<24} ${cash:,.0f}{'  [smart]' if is_smart else ''}")
@@ -125,6 +136,8 @@ def main():
     p.add_argument("--top", type=int, default=20)
     p.add_argument("--days", type=int, default=None, help="lookback window (default config)")
     p.add_argument("--wallets", type=int, default=3, help="top wallets shown per bet")
+    p.add_argument("--no-live", action="store_true",
+                   help="skip fetching current prices from Gamma")
 
     p = sub.add_parser("score", help="rank whale wallets")
     p.add_argument("--top", type=int, default=30)

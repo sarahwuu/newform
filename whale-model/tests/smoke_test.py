@@ -22,7 +22,7 @@ from polywhale import db
 from polywhale.backtest import walk_forward
 from polywhale.config import Config
 from polywhale.model import score_wallets
-from polywhale.rank import rank_bets
+from polywhale.rank import attach_live_prices, rank_bets
 from polywhale.signals import generate
 
 rng = random.Random(42)
@@ -156,9 +156,18 @@ def test_rank_orders_by_total_whale_notional():
         assert bets[0].smart_notional == 0          # b and c have no record
         assert bets[1].smart_notional == 50_000     # whale-a qualified
         assert bets[1].top_wallets[0][2] is True    # flagged smart
+
+        class StubClient:  # Gamma response for live (unresolved) markets
+            def markets_by_condition_ids(self, ids):
+                return [{"conditionId": "0xmktB", "outcomePrices": '["0.82", "0.18"]'}]
+
+        attach_live_prices(bets, StubClient())
+        assert bets[0].current_price == 0.18        # outcome_index 1
+        assert bets[1].current_price is None        # not returned -> stays offline
         print(f"  rank: order by total notional ok "
               f"(${bets[0].total_notional:,.0f} > ${bets[1].total_notional:,.0f}), "
-              f"smart split ok")
+              f"smart split ok, live price attach ok "
+              f"(entry {bets[0].weighted_entry:.2f} -> now {bets[0].current_price:.2f})")
 
 
 if __name__ == "__main__":
