@@ -1,7 +1,7 @@
 # polywhale — finding value in Polymarket whales
 
-A pipeline that tracks **whales** — wallets placing **≥ $10k** on outcomes priced
-**below 20¢** (longshots), across every category — and answers the only question
+A pipeline that tracks **whales** — wallets holding **positions ≥ $10k** on
+outcomes priced **2–20¢** (longshots), across every category — and answers the only question
 that matters: *which of these whales actually beat the odds they pay, and where
 are they positioned right now?*
 
@@ -23,8 +23,9 @@ For each wallet, over its resolved sub-20¢ buys:
 | `alpha = (wins + c) / (Σ pᵢ + c)` | outperformance ratio, shrunk toward 1 by prior strength *c* — kills small-sample flukes (a 2-for-2 whale can't outrank a 30-for-100 whale) |
 | `z = (wins − Σ pᵢ) / √(Σ pᵢ(1−pᵢ))` | how many standard deviations the wallet beats the efficient-market null |
 
-A wallet **qualifies as smart** when it has ≥ 5 resolved longshots, `alpha ≥ 1.15`,
-and `z ≥ 1.0` (all configurable in `polywhale/config.py` or via CLI flags).
+A wallet **qualifies as smart** when it has ≥ 8 resolved longshot positions,
+`alpha ≥ 1.15`, and `z ≥ 2.0` (all configurable in `polywhale/config.py` or via
+CLI flags).
 
 **Why not just rank by ROI?** Longshot ROI is brutally noisy — one 15¢ hit pays
 +566% and dominates everything. Counting wins vs. price-implied wins is far more
@@ -35,17 +36,26 @@ stable, and the z-score tells you whether the record could plausibly be luck.
 ```bash
 pip install -r requirements.txt
 
-python -m polywhale ingest      # pull recent ≥$10k trades + market resolutions
+python -m polywhale ingest      # pull recent ≥$2k fills + market resolutions
 python -m polywhale rank        # open bets ranked by total whale dollars
 python -m polywhale score       # rank whale wallets (alpha, z, ROI, smart flag)
 python -m polywhale signals     # open markets where smart whales hold fresh longshots
 python -m polywhale backtest    # walk-forward copy-trade simulation
 ```
 
-Flags: `--min-cash 25000`, `--max-price 0.10`, `--db path.db` work on every command.
+Flags: `--min-cash 25000`, `--min-price 0.03`, `--max-price 0.10`, `--db path.db`
+work on every command (`--min-cash` is the position-level whale bar).
+
+**Why these criteria.** The whale bar applies to *positions*, not single fills —
+real whales clip orders to avoid attention, so $40k built from eight $5k fills
+counts while a lone $10k print is just a big punt. Ingest stores everything from
+$2k up so accumulation is visible. The 2¢ floor exists because the sub-2¢ tape
+is lottery tickets, dust, and arb legs with huge spreads; documented informed
+entries cluster around 3–10¢. The 20¢ ceiling keeps the asymmetric-payoff zone
+without bleeding into coin-flip territory.
 
 **`rank` is the consensus view:** every open market/outcome with criteria-fitting
-trades (≥ $10k at < 20¢), ranked by **total notional wagered across all whales** —
+positions (≥ $10k entered at 2–20¢), ranked by **total notional wagered across all whales** —
 with whale count, trade count, weighted average entry, and how much of the pile
 comes from statistically qualified wallets (`[smart]`). It also fetches the
 **current Gamma price** and shows the drift vs. the whales' average entry, so you
@@ -93,7 +103,7 @@ wallet" detection get sharper the longer it runs.
 - The Data API only pages back through a recent window of the tape. **Run
   `ingest` on a schedule** (e.g. cron every 15–60 min); the SQLite DB accumulates
   history and dedupes automatically. The more weeks of tape you collect, the more
-  wallets clear the 5-resolved-bets bar.
+  wallets clear the 8-resolved-positions bar.
 - To backfill years of history at once, pull Polymarket's unified dataset on
   [Dune Analytics](https://dune.com/datadashboards/prediction-markets) and load it
   into the `trades` table — the model code doesn't care where rows came from.

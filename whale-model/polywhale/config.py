@@ -5,9 +5,14 @@ from dataclasses import dataclass
 
 @dataclass
 class Config:
-    # Whale definition
-    min_cash: float = 10_000.0   # minimum USDC notional per trade
-    max_price: float = 0.20      # only longshot entries below this price
+    # Whale definition — applied at the POSITION level (fills aggregated per
+    # wallet+market+outcome), because real whales clip orders: a $40k position
+    # built from eight $5k fills must count, a lone $10k punt must not gain
+    # rank just for arriving in one print.
+    ingest_min_cash: float = 2_000.0       # fill floor stored to the DB
+    min_position_cash: float = 10_000.0    # whale = total position notional >= this
+    min_price: float = 0.02      # below ~2c: lottery dust, huge spreads, arb legs
+    max_price: float = 0.20      # longshot ceiling
 
     # Wallet qualification ("smart whale"). Thresholds apply to POSITIONS
     # (fills aggregated per market+outcome), not raw fills. min_z is set high

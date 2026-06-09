@@ -23,34 +23,36 @@ class Signal:
 def generate(con, cfg):
     """Return Signals sorted by smart-money notional, largest first."""
     scores = score_wallets(
-        db.resolved_longshot_buys(con, cfg.max_price),
+        db.resolved_longshot_buys(con, cfg),
         prior_strength=cfg.prior_strength,
     )
     smart = {s.wallet: s for s in scores if s.qualifies(cfg)}
     if not smart:
         return []
 
-    since = int(time.time()) - cfg.signal_window_days * 86400
+    now = int(time.time())
+    since = now - cfg.signal_window_days * 86400
+    burst_cutoff = now - cfg.burst_hours * 3600
     grouped = defaultdict(list)
-    for t in db.open_longshot_buys(con, cfg.max_price, since):
-        if t["wallet"] in smart:
-            grouped[(t["condition_id"], t["outcome"])].append(t)
+    for p in db.open_longshot_positions(con, cfg, since, burst_cutoff):
+        if p["wallet"] in smart:
+            grouped[(p["condition_id"], p["outcome"])].append(p)
 
     signals = []
-    for (condition_id, outcome), trades in grouped.items():
-        notional = sum(t["cash"] for t in trades)
+    for (condition_id, outcome), positions in grouped.items():
+        notional = sum(p["cash"] for p in positions)
         sig = Signal(
             condition_id=condition_id,
-            title=trades[0]["title"] or condition_id,
+            title=positions[0]["title"] or condition_id,
             outcome=outcome or "?",
-            event_slug=trades[0]["event_slug"] or "",
+            event_slug=positions[0]["event_slug"] or "",
             smart_notional=notional,
-            weighted_entry=sum(t["cash"] * t["price"] for t in trades) / notional,
-            latest_ts=max(t["ts"] for t in trades),
+            weighted_entry=sum(p["cash"] * p["price"] for p in positions) / notional,
+            latest_ts=max(p["latest_ts"] for p in positions),
             wallets=sorted(
-                {(t["pseudonym"] or t["wallet"],
-                  round(smart[t["wallet"]].z, 2),
-                  t["cash"]) for t in trades},
+                ((p["pseudonym"] or p["wallet"],
+                  round(smart[p["wallet"]].z, 2),
+                  p["cash"]) for p in positions),
                 key=lambda w: -w[2],
             ),
         )

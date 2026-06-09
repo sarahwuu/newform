@@ -120,7 +120,7 @@ def test_db_roundtrip_and_signals():
         for i in range(8):
             db.upsert_market(con, resolved_gamma(f"0xcond{i}"))
 
-        positions = db.resolved_longshot_buys(con, CFG.max_price)
+        positions = db.resolved_longshot_buys(con, CFG)
         assert len(positions) == 8 and all(r["won"] for r in positions)
         merged = [r for r in positions if r["condition_id"] == "0xcond0"][0]
         assert merged["fills"] == 2 and merged["cash"] == 22_000
@@ -163,6 +163,12 @@ def test_rank_orders_by_total_whale_notional():
             raw("0xb2", "whale-c", "0xmktB", 30_000),
             raw("0xb3", "whale-c", "0xmktB2", 11_000, outcome="No",
                 outcome_index=0, event="event-0xmktB"),
+            # Clip accumulation: 3 x $4k fills cross the $10k position bar...
+            raw("0xd1", "whale-d", "0xmktC", 4_000),
+            raw("0xd2", "whale-d", "0xmktC", 4_000, ts=1_900_000_060),
+            raw("0xd3", "whale-d", "0xmktC", 4_000, ts=1_900_000_120),
+            # ...while a lone $4k punt stays below it.
+            raw("0xe1", "whale-e", "0xmktD", 4_000),
         ])
 
         cfg = Config(signal_window_days=10_000_000)
@@ -180,6 +186,12 @@ def test_rank_orders_by_total_whale_notional():
         assert tags["whale-b"] == "fresh"
         assert tags["whale-c"] == "fresh,hedged"
         assert bets[1].fresh_notional == 0          # whale-a has 9 fills of history
+
+        # Position-level whale bar: clip accumulation counts, lone punt doesn't.
+        by_cond = {b.condition_id: b for b in bets}
+        assert "0xmktC" in by_cond and by_cond["0xmktC"].total_notional == 12_000
+        assert by_cond["0xmktC"].n_trades == 3 and by_cond["0xmktC"].n_whales == 1
+        assert "0xmktD" not in by_cond
 
         class StubClient:  # Gamma response for live (unresolved) markets
             def markets_by_condition_ids(self, ids):

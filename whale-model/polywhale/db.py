@@ -131,14 +131,15 @@ def condition_ids_missing_or_unresolved(con):
     return [r["condition_id"] for r in rows]
 
 
-def resolved_longshot_buys(con, max_price):
+def resolved_longshot_buys(con, cfg):
     """Whale longshot POSITIONS joined to their market's final outcome.
 
     Fills are aggregated per (wallet, market, outcome): a whale sweeping the
     book in ten fills made ONE bet, not ten. Treating fills as independent
     would inflate sample size and z-scores for exactly the wallets that trade
-    biggest. `price` is the share-weighted average entry; `ts` is the first
-    fill (the moment the information, if any, was acted on).
+    biggest. The whale bar (min_position_cash) applies to the aggregate, so
+    clip-accumulated positions count. `price` is the share-weighted average
+    entry; `ts` is the first fill (when the information, if any, was acted on).
     """
     return con.execute(
         """SELECT t.wallet, MAX(t.pseudonym) AS pseudonym,
@@ -152,26 +153,43 @@ def resolved_longshot_buys(con, max_price):
                   (t.outcome_index = m.winning_index) AS won
            FROM trades t
            JOIN markets m ON m.condition_id = t.condition_id
-           WHERE t.side = 'BUY' AND t.price < ? AND m.resolved = 1
+           WHERE t.side = 'BUY' AND t.price >= ? AND t.price < ?
+             AND m.resolved = 1
            GROUP BY t.wallet, t.condition_id, t.outcome_index
+           HAVING SUM(t.cash) >= ?
            ORDER BY MIN(t.ts)""",
-        (max_price,),
+        (cfg.min_price, cfg.max_price, cfg.min_position_cash),
     ).fetchall()
 
 
-def open_longshot_buys(con, max_price, since_ts):
-    """Recent whale longshot BUYs on markets that have not resolved yet."""
+def open_longshot_positions(con, cfg, since_ts, burst_cutoff):
+    """Whale longshot POSITIONS on markets that have not resolved yet.
+
+    Same aggregation and position-level whale bar as the resolved query, plus
+    burst_cash (notional that arrived after burst_cutoff) for pattern flags.
+    """
     return con.execute(
-        """SELECT t.wallet, t.pseudonym, t.condition_id, t.outcome,
-                  t.outcome_index, t.price, t.cash, t.ts, t.title, t.event_slug,
-                  m.end_ts
+        """SELECT t.wallet, MAX(t.pseudonym) AS pseudonym,
+                  t.condition_id, MAX(t.outcome) AS outcome, t.outcome_index,
+                  COUNT(*) AS fills,
+                  SUM(t.cash) AS cash,
+                  SUM(t.cash) / SUM(t.size) AS price,
+                  MIN(t.ts) AS first_ts,
+                  MAX(t.ts) AS latest_ts,
+                  SUM(CASE WHEN t.ts >= ? THEN t.cash ELSE 0 END) AS burst_cash,
+                  MAX(t.title) AS title,
+                  MAX(t.event_slug) AS event_slug,
+                  MAX(m.end_ts) AS end_ts
            FROM trades t
            LEFT JOIN markets m ON m.condition_id = t.condition_id
-           WHERE t.side = 'BUY' AND t.price < ?
+           WHERE t.side = 'BUY' AND t.price >= ? AND t.price < ?
              AND t.ts >= ?
              AND COALESCE(m.resolved, 0) = 0
-           ORDER BY t.ts DESC""",
-        (max_price, since_ts),
+           GROUP BY t.wallet, t.condition_id, t.outcome_index
+           HAVING SUM(t.cash) >= ?
+           ORDER BY MAX(t.ts) DESC""",
+        (burst_cutoff, cfg.min_price, cfg.max_price, since_ts,
+         cfg.min_position_cash),
     ).fetchall()
 
 

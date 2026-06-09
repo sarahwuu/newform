@@ -39,56 +39,54 @@ class RankedBet:
 def rank_bets(con, cfg, window_days=None):
     """Return RankedBets sorted by total whale notional, largest first."""
     scores = score_wallets(
-        db.resolved_longshot_buys(con, cfg.max_price),
+        db.resolved_longshot_buys(con, cfg),
         prior_strength=cfg.prior_strength,
     )
     smart = {s.wallet for s in scores if s.qualifies(cfg)}
 
     days = cfg.signal_window_days if window_days is None else window_days
-    since = int(time.time()) - days * 86400
-    grouped = defaultdict(list)
-    for t in db.open_longshot_buys(con, cfg.max_price, since):
-        grouped[(t["condition_id"], t["outcome"])].append(t)
-
     now = int(time.time())
+    since = now - days * 86400
     burst_cutoff = now - cfg.burst_hours * 3600
+    grouped = defaultdict(list)
+    for p in db.open_longshot_positions(con, cfg, since, burst_cutoff):
+        grouped[(p["condition_id"], p["outcome"])].append(p)
+
     ranked = []
-    for (condition_id, outcome), trades in grouped.items():
-        notional = sum(t["cash"] for t in trades)
-        event_slug = trades[0]["event_slug"] or ""
-        outcome_index = trades[0]["outcome_index"]
-        per_wallet = defaultdict(float)
-        for t in trades:
-            per_wallet[(t["pseudonym"] or t["wallet"], t["wallet"])] += t["cash"]
+    for (condition_id, outcome), positions in grouped.items():
+        notional = sum(p["cash"] for p in positions)
+        event_slug = positions[0]["event_slug"] or ""
+        outcome_index = positions[0]["outcome_index"]
 
         fresh_notional = 0.0
         wallets = []
-        for (name, wallet), cash in per_wallet.items():
+        for p in positions:           # one row per wallet after aggregation
             tags = []
-            if db.wallet_fill_count(con, wallet) <= cfg.fresh_wallet_max_fills:
+            if db.wallet_fill_count(con, p["wallet"]) <= cfg.fresh_wallet_max_fills:
                 tags.append("fresh")     # burner-wallet pattern (see caveat in README)
-                fresh_notional += cash
-            if db.wallet_other_bets_in_event(con, wallet, event_slug,
+                fresh_notional += p["cash"]
+            if db.wallet_other_bets_in_event(con, p["wallet"], event_slug,
                                              condition_id, outcome_index, since):
                 tags.append("hedged")    # also bought other outcomes of this event
-            wallets.append((name, cash, wallet in smart, ",".join(tags)))
+            wallets.append((p["pseudonym"] or p["wallet"], p["cash"],
+                            p["wallet"] in smart, ",".join(tags)))
         wallets.sort(key=lambda w: -w[1])
 
         ranked.append(RankedBet(
             condition_id=condition_id,
-            title=trades[0]["title"] or condition_id,
+            title=positions[0]["title"] or condition_id,
             outcome=outcome or "?",
             outcome_index=outcome_index,
             event_slug=event_slug,
             total_notional=notional,
-            smart_notional=sum(t["cash"] for t in trades if t["wallet"] in smart),
+            smart_notional=sum(p["cash"] for p in positions if p["wallet"] in smart),
             fresh_notional=fresh_notional,
-            burst_notional=sum(t["cash"] for t in trades if t["ts"] >= burst_cutoff),
-            n_trades=len(trades),
-            n_whales=len(per_wallet),
-            weighted_entry=sum(t["cash"] * t["price"] for t in trades) / notional,
-            latest_ts=max(t["ts"] for t in trades),
-            end_ts=trades[0]["end_ts"],
+            burst_notional=sum(p["burst_cash"] for p in positions),
+            n_trades=sum(p["fills"] for p in positions),
+            n_whales=len(positions),
+            weighted_entry=sum(p["cash"] * p["price"] for p in positions) / notional,
+            latest_ts=max(p["latest_ts"] for p in positions),
+            end_ts=positions[0]["end_ts"],
             top_wallets=wallets,
         ))
     ranked.sort(key=lambda b: -b.total_notional)

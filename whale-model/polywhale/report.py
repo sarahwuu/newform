@@ -36,8 +36,9 @@ def build_markdown(bets, cfg, now_ts):
     lines = [
         "# 🐋 Whale Rank Board — Top 10",
         "",
-        f"_Updated {_now_label(now_ts)} · criteria: ≥ ${cfg.min_cash:,.0f}/trade "
-        f"at < {cfg.max_price:.2f} · lookback {cfg.signal_window_days}d · "
+        f"_Updated {_now_label(now_ts)} · criteria: whale positions ≥ "
+        f"${cfg.min_position_cash:,.0f} entered at {cfg.min_price:.2f}–"
+        f"{cfg.max_price:.2f} · lookback {cfg.signal_window_days}d · "
         f"ranked by total whale notional_",
         "",
         "| # | Bet | Whale $ | Whales | Smart $ | Entry | Now | Patterns |",
@@ -105,8 +106,8 @@ def build_html(bets, cfg, now_ts):
   .foot {{ color:#8b949e; font-size:.8rem; margin-top:1.2rem; }}
 </style></head><body>
 <h1>🐋 Whale Rank Board — Top 10</h1>
-<div class="meta">Updated {_now_label(now_ts)} · ≥ ${cfg.min_cash:,.0f}/trade at
-&lt; {cfg.max_price:.2f} · lookback {cfg.signal_window_days}d · ranked by total whale notional</div>
+<div class="meta">Updated {_now_label(now_ts)} · whale positions ≥ ${cfg.min_position_cash:,.0f}
+entered at {cfg.min_price:.2f}–{cfg.max_price:.2f} · lookback {cfg.signal_window_days}d · ranked by total whale notional</div>
 <table>
 <tr><th class="r">#</th><th>Bet</th><th class="r">Whale $</th><th class="r">Whales</th>
 <th class="r">Smart $</th><th class="r">Entry</th><th class="r">Now</th></tr>

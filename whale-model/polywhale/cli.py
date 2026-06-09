@@ -30,7 +30,7 @@ def _fmt_ts(ts):
 def cmd_ingest(con, cfg, args):
     client = PolymarketClient()
     added = db.upsert_trades(
-        con, client.iter_large_trades(cfg.min_cash, max_pages=args.pages))
+        con, client.iter_large_trades(cfg.ingest_min_cash, max_pages=args.pages))
     print(f"trades: +{added} new rows")
 
     missing = db.condition_ids_missing_or_unresolved(con)
@@ -55,7 +55,8 @@ def cmd_rank(con, cfg, args):
         except Exception as exc:
             print(f"(live prices unavailable: {exc})\n")
     print(f"open bets ranked by total whale notional "
-          f"(>= ${cfg.min_cash:,.0f}/trade, entry < {cfg.max_price:.2f}, "
+          f"(positions >= ${cfg.min_position_cash:,.0f}, "
+          f"entry {cfg.min_price:.2f}-{cfg.max_price:.2f}, "
           f"last {args.days or cfg.signal_window_days}d)\n")
     now_ts = int(time.time())
     for i, b in enumerate(shown, 1):
@@ -109,7 +110,7 @@ def cmd_report(con, cfg, args):
 
 def cmd_score(con, cfg, args):
     scores = score_wallets(
-        db.resolved_longshot_buys(con, cfg.max_price), cfg.prior_strength)
+        db.resolved_longshot_buys(con, cfg), cfg.prior_strength)
     if not scores:
         sys.exit("no resolved longshot bets yet — run `ingest` first (and let markets resolve)")
     print(f"{'wallet':<24} {'n':>4} {'wins':>5} {'exp':>6} {'alpha':>6} "
@@ -139,7 +140,7 @@ def cmd_signals(con, cfg, args):
 
 
 def cmd_backtest(con, cfg, args):
-    rows = db.resolved_longshot_buys(con, cfg.max_price)
+    rows = db.resolved_longshot_buys(con, cfg)
     if not rows:
         sys.exit("no resolved longshot bets yet — run `ingest` first")
     res = walk_forward(rows, cfg, stake=args.stake)
@@ -159,7 +160,9 @@ def cmd_backtest(con, cfg, args):
 def main():
     parser = argparse.ArgumentParser(prog="polywhale")
     parser.add_argument("--db", default=None, help="sqlite path (default polywhale.db)")
-    parser.add_argument("--min-cash", type=float, default=None, help="whale notional floor")
+    parser.add_argument("--min-cash", type=float, default=None,
+                        help="whale position notional floor")
+    parser.add_argument("--min-price", type=float, default=None, help="longshot price floor")
     parser.add_argument("--max-price", type=float, default=None, help="longshot price ceiling")
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -194,7 +197,9 @@ def main():
     if args.db:
         cfg.db_path = args.db
     if args.min_cash is not None:
-        cfg.min_cash = args.min_cash
+        cfg.min_position_cash = args.min_cash
+    if args.min_price is not None:
+        cfg.min_price = args.min_price
     if args.max_price is not None:
         cfg.max_price = args.max_price
 
