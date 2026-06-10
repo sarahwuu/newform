@@ -132,8 +132,9 @@ def cmd_stats(con, cfg, args):
           f"{one('SELECT COUNT(*) FROM trades t JOIN markets m ON m.condition_id = t.condition_id'):,}")
     print(f"fills on resolved markets: "
           f"{one('SELECT COUNT(*) FROM trades t JOIN markets m ON m.condition_id = t.condition_id WHERE m.resolved = 1'):,}")
-    positions = db.resolved_longshot_buys(con, cfg)
-    print(f"resolved longshot positions >= ${cfg.min_position_cash:,.0f}: {len(positions):,}")
+    positions = db.resolved_buy_positions(con, cfg)
+    print(f"resolved scoring positions >= ${cfg.scoring_min_cash:,.0f} (all prices): "
+          f"{len(positions):,}")
 
     print("\nsample market rows (eyeball closed/resolved parsing):")
     for r in con.execute("SELECT condition_id, closed, resolved, winning_index "
@@ -255,9 +256,14 @@ def cmd_report(con, cfg, args):
 
 def cmd_score(con, cfg, args):
     scores = score_wallets(
-        db.resolved_longshot_buys(con, cfg), cfg.prior_strength)
+        db.resolved_buy_positions(con, cfg), cfg.prior_strength)
     if not scores:
-        sys.exit("no resolved longshot bets yet — run `ingest` first (and let markets resolve)")
+        sys.exit("no resolved positions yet — run `ingest`/`backfill` then `resolve`")
+    # Wallets with real samples first: qualified, then by z among n >= min_n.
+    scores.sort(key=lambda s: (not s.qualifies(cfg), s.n < args.min_n, -s.z))
+    print(f"track records over ALL resolved buys (n = positions, "
+          f"smart bar: n >= {cfg.min_resolved}, z >= {cfg.min_z}, "
+          f"alpha >= {cfg.min_alpha})\n")
     print(f"{'wallet':<24} {'n':>4} {'wins':>5} {'exp':>6} {'alpha':>6} "
           f"{'z':>6} {'staked':>12} {'roi':>8}  smart")
     for s in scores[:args.top]:
@@ -285,7 +291,7 @@ def cmd_signals(con, cfg, args):
 
 
 def cmd_backtest(con, cfg, args):
-    rows = db.resolved_longshot_buys(con, cfg)
+    rows = db.resolved_buy_positions(con, cfg)
     if not rows:
         sys.exit("no resolved longshot bets yet — run `ingest` first")
     res = walk_forward(rows, cfg, stake=args.stake)
@@ -350,6 +356,8 @@ def main():
 
     p = sub.add_parser("score", help="rank whale wallets")
     p.add_argument("--top", type=int, default=30)
+    p.add_argument("--min-n", type=int, default=5,
+                   help="bury wallets with fewer resolved positions than this")
 
     p = sub.add_parser("signals", help="live smart-whale positions")
     p.add_argument("--top", type=int, default=15)

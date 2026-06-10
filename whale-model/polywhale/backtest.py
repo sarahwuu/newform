@@ -68,17 +68,24 @@ class _Running:
         return z >= cfg.min_z and self.alpha(cfg) >= cfg.min_alpha
 
 
-def walk_forward(resolved_trades, cfg, stake=100.0):
-    """resolved_trades: rows with wallet, price, cash, ts, end_ts, won — ts-sorted."""
+def walk_forward(resolved_positions, cfg, stake=100.0):
+    """resolved_positions: ALL resolved BUY positions (any price), ts-sorted.
+
+    Track records build from every position, but we only COPY positions that
+    match the signal criteria — longshot price band and whale-size notional —
+    because that is the strategy being evaluated.
+    """
     wallets = {}
     result = BacktestResult()
 
-    for t in resolved_trades:
+    for t in resolved_positions:
         w = wallets.setdefault(t["wallet"], _Running())
         w.settle_until(t["ts"])
 
         price, won = float(t["price"]), bool(t["won"])
-        if w.qualifies(cfg):
+        copyable = (cfg.min_price <= price < cfg.max_price
+                    and float(t["cash"]) >= cfg.min_position_cash)
+        if copyable and w.qualifies(cfg):
             pnl = stake * (1 / price - 1) if won else -stake
             result.copied += 1
             result.wins += won

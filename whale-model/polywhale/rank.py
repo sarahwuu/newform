@@ -55,7 +55,7 @@ class RankedBet:
 def rank_bets(con, cfg, window_days=None):
     """Return RankedBets sorted by total whale notional, largest first."""
     scores = score_wallets(
-        db.resolved_longshot_buys(con, cfg),
+        db.resolved_buy_positions(con, cfg),
         prior_strength=cfg.prior_strength,
     )
     smart = {s.wallet: s for s in scores if s.qualifies(cfg)}

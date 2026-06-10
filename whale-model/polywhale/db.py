@@ -150,15 +150,15 @@ def condition_ids_missing_or_unresolved(con):
     return [r["condition_id"] for r in rows]
 
 
-def resolved_longshot_buys(con, cfg):
-    """Whale longshot POSITIONS joined to their market's final outcome.
+def resolved_buy_positions(con, cfg):
+    """ALL resolved BUY positions (any price band) — track-record evidence.
 
     Fills are aggregated per (wallet, market, outcome): a whale sweeping the
     book in ten fills made ONE bet, not ten. Treating fills as independent
     would inflate sample size and z-scores for exactly the wallets that trade
-    biggest. The whale bar (min_position_cash) applies to the aggregate, so
-    clip-accumulated positions count. `price` is the share-weighted average
-    entry; `ts` is the first fill (when the information, if any, was acted on).
+    biggest. `price` is the share-weighted average entry; `ts` is the first
+    fill (when the information, if any, was acted on). Uses the scoring
+    bounds, not the longshot signal band: skill is evidenced by every bet.
     """
     return con.execute(
         """SELECT t.wallet, MAX(t.pseudonym) AS pseudonym,
@@ -177,7 +177,7 @@ def resolved_longshot_buys(con, cfg):
            GROUP BY t.wallet, t.condition_id, t.outcome_index
            HAVING SUM(t.cash) >= ?
            ORDER BY MIN(t.ts)""",
-        (cfg.min_price, cfg.max_price, cfg.min_position_cash),
+        (cfg.scoring_min_price, cfg.scoring_max_price, cfg.scoring_min_cash),
     ).fetchall()
 
 

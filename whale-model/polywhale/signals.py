@@ -23,7 +23,7 @@ class Signal:
 def generate(con, cfg):
     """Return Signals sorted by smart-money notional, largest first."""
     scores = score_wallets(
-        db.resolved_longshot_buys(con, cfg),
+        db.resolved_buy_positions(con, cfg),
         prior_strength=cfg.prior_strength,
     )
     smart = {s.wallet: s for s in scores if s.qualifies(cfg)}

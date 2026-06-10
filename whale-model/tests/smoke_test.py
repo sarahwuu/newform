@@ -178,7 +178,7 @@ def test_db_roundtrip_and_signals():
         for i in range(8):
             db.upsert_market(con, resolved_gamma(f"0xcond{i}"))
 
-        positions = db.resolved_longshot_buys(con, CFG)
+        positions = db.resolved_buy_positions(con, CFG)
         assert len(positions) == 8 and all(r["won"] for r in positions)
         merged = [r for r in positions if r["condition_id"] == "0xcond0"][0]
         assert merged["fills"] == 2 and merged["cash"] == 22_000

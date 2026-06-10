@@ -14,6 +14,16 @@ class Config:
     min_price: float = 0.02      # below ~2c: lottery dust, huge spreads, arb legs
     max_price: float = 0.20      # longshot ceiling
 
+    # Track-record scoring uses ALL resolved buys (any price band), because
+    # whales place too few sub-20c bets to build a sample from those alone —
+    # real data: ~182 resolved longshot positions across 1,289 wallets. Every
+    # bet at price p tests the wallet against probability p, so mid-range
+    # bets are equally valid evidence. The longshot band above applies to
+    # SIGNALS (which open bets get surfaced), not to evidence.
+    scoring_min_cash: float = 2_000.0   # position floor for track-record evidence
+    scoring_min_price: float = 0.01     # ignore dust prices when scoring
+    scoring_max_price: float = 0.95     # ignore near-certainties when scoring
+
     # Wallet qualification ("smart whale"). Thresholds apply to POSITIONS
     # (fills aggregated per market+outcome), not raw fills. min_z is set high
     # deliberately: scanning thousands of wallets is a multiple-comparisons
