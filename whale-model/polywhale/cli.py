@@ -149,6 +149,80 @@ def cmd_stats(con, cfg, args):
         print(f"  {r['condition_id']}")
 
 
+def cmd_patterns(con, cfg, args):
+    """Test the insider thesis on HISTORY: do longshot bets with insider
+    signatures (fresh wallet, near close, news category) beat their odds?
+
+    Cohorts are judged exactly like wallets: wins vs price-implied wins,
+    shrunken alpha, z against the efficient-market null, realized ROI.
+    """
+    rows = con.execute(
+        """SELECT t.wallet, t.condition_id,
+                  SUM(t.cash) AS cash,
+                  SUM(t.cash) / SUM(t.size) AS price,
+                  MIN(t.ts) AS ts,
+                  MAX(m.end_ts) AS end_ts,
+                  MAX(m.category) AS category,
+                  (t.outcome_index = m.winning_index) AS won,
+                  MAX(w.first_ts) AS first_ts
+           FROM trades t
+           JOIN markets m ON m.condition_id = t.condition_id
+           JOIN (SELECT wallet, MIN(ts) AS first_ts
+                 FROM trades GROUP BY wallet) w ON w.wallet = t.wallet
+           WHERE t.side = 'BUY' AND t.price >= ? AND t.price < ?
+             AND m.resolved = 1
+           GROUP BY t.wallet, t.condition_id, t.outcome_index
+           HAVING SUM(t.cash) >= ?""",
+        (cfg.min_price, cfg.max_price, args.patterns_min_cash),
+    ).fetchall()
+    if not rows:
+        sys.exit("no resolved longshot positions at this --min-cash floor")
+
+    day = 86400
+    def near_close(r):
+        return r["end_ts"] and -day <= r["end_ts"] - r["ts"] <= 7 * day
+
+    def fresh(r):    # caveat: "first seen" is bounded by our backfill window
+        return r["ts"] - r["first_ts"] <= 7 * day
+
+    sports = {"Sports", "sports", "NBA", "NFL", "Soccer", "MLB", "NHL", "Esports"}
+    def newsy(r):
+        return (r["category"] or "") not in sports
+
+    cohorts = [
+        ("all longshot whale bets", rows),
+        ("near close (<=7d to end)", [r for r in rows if near_close(r)]),
+        ("fresh wallet (<=7d old)", [r for r in rows if fresh(r)]),
+        ("non-sports category", [r for r in rows if newsy(r)]),
+        ("fresh + near close", [r for r in rows if fresh(r) and near_close(r)]),
+        ("fresh + near close + non-sports",
+         [r for r in rows if fresh(r) and near_close(r) and newsy(r)]),
+    ]
+    print(f"insider-signature cohorts over resolved longshot positions "
+          f">= ${args.patterns_min_cash:,.0f} "
+          f"(price {cfg.min_price:.2f}-{cfg.max_price:.2f})\n")
+    print(f"{'cohort':<34} {'n':>5} {'wins':>5} {'exp':>7} {'alpha':>6} "
+          f"{'z':>6} {'roi':>8}")
+    for name, grp in cohorts:
+        if not grp:
+            print(f"{name:<34} {0:>5}")
+            continue
+        n = len(grp)
+        wins = sum(bool(r["won"]) for r in grp)
+        exp = sum(r["price"] for r in grp)
+        var = sum(r["price"] * (1 - r["price"]) for r in grp)
+        staked = sum(r["cash"] for r in grp)
+        payout = sum(r["cash"] / r["price"] for r in grp if r["won"])
+        alpha = (wins + cfg.prior_strength) / (exp + cfg.prior_strength)
+        z = (wins - exp) / (var ** 0.5) if var > 0 else 0.0
+        roi = (payout - staked) / staked if staked else 0.0
+        print(f"{name:<34} {n:>5} {wins:>5} {exp:>7.1f} {alpha:>6.2f} "
+              f"{z:>6.2f} {roi:>8.1%}")
+    print("\nread: alpha > 1 and z >= 2 in a cohort = that signature beats its "
+          "odds; positive roi = it made money. 'fresh' is bounded by the "
+          "backfill window, so treat it as approximate.")
+
+
 def cmd_rank(con, cfg, args):
     bets = rank_bets(con, cfg, window_days=args.days)
     if not bets:
@@ -224,7 +298,9 @@ def cmd_ev(con, cfg, args):
               + (f" (best is {best:+.0%})" if best is not None else ""))
         return
     print(f"open bets by expected value at current price "
-          f"(smart-whale basis, min EV {args.min_ev:+.0%})\n")
+          f"(smart-whale basis, min EV {args.min_ev:+.0%})")
+    print("note: EV assumes wallets' past alpha persists — verify with "
+          "`backtest --all-prices` before trusting\n")
     for i, (ev, b) in enumerate(shown[:args.top], 1):
         print(f"{i:>2}. EV {ev:+.0%}  {b.title}  ->  {b.outcome}")
         print(f"    model prob {b.q_smart:.2f} vs price {b.current_price:.2f}"
@@ -306,8 +382,13 @@ def cmd_backtest(con, cfg, args):
     print(f"total staked:   ${res.staked:,.0f}")
     print(f"profit:         ${res.profit:,.0f}")
     print(f"ROI:            {res.roi:.1%}")
-    print(f"model EV claim: {res.predicted_ev:.1%}  "
-          f"(close to ROI = EV estimates are honest)")
+    gap = res.predicted_ev - res.roi
+    verdict = ("EV claims SUPPORTED by realized results"
+               if res.copied >= 50 and abs(gap) < 0.15 else
+               "EV claims NOT supported — do not trust the ev screen"
+               if res.copied >= 50 else
+               "sample too small to judge calibration")
+    print(f"model EV claim: {res.predicted_ev:.1%}  ({verdict})")
     top = sorted(res.by_wallet.items(), key=lambda kv: -kv[1]["profit"])[:10]
     if top:
         print("\ntop copied wallets:")
@@ -338,6 +419,11 @@ def main():
 
     sub.add_parser("resolve", help="refresh market resolutions only")
     sub.add_parser("stats", help="pipeline diagnostics: counts at every stage")
+
+    p = sub.add_parser("patterns", help="test insider signatures on history")
+    p.add_argument("--min-cash", dest="patterns_min_cash", type=float,
+                   default=5_000.0,
+                   help="position floor for the cohort study (default $5k)")
 
     p = sub.add_parser("rank", help="open bets ranked by total whale dollars")
     p.add_argument("--top", type=int, default=20)
@@ -385,9 +471,9 @@ def main():
 
     con = db.connect(cfg.db_path)
     {"ingest": cmd_ingest, "backfill": cmd_backfill, "resolve": cmd_resolve,
-     "stats": cmd_stats, "rank": cmd_rank, "ev": cmd_ev, "report": cmd_report,
-     "score": cmd_score, "signals": cmd_signals,
-     "backtest": cmd_backtest}[args.command](con, cfg, args)
+     "stats": cmd_stats, "patterns": cmd_patterns, "rank": cmd_rank,
+     "ev": cmd_ev, "report": cmd_report, "score": cmd_score,
+     "signals": cmd_signals, "backtest": cmd_backtest}[args.command](con, cfg, args)
 
 
 if __name__ == "__main__":
