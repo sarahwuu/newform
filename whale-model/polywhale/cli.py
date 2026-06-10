@@ -39,19 +39,24 @@ def _refresh_markets(con, client):
     if not missing:
         print("markets: nothing to refresh")
         return
-    chunk, done, failed = 20, 0, 0
+    chunk, done, failed, found = 20, 0, 0, 0
     for i in range(0, len(missing), chunk):
         batch = missing[i:i + chunk]
         try:
-            for m in client.markets_by_condition_ids(batch):
+            got = client.markets_by_condition_ids(batch)
+            for m in got:
                 db.upsert_market(con, m)
+            found += len(got)
             done += len(batch)
         except Exception:
             failed += len(batch)
         if i and i % 2000 == 0:
-            print(f"  markets: {i}/{len(missing)} checked...")
-    print(f"markets: refreshed {done} of {len(missing)}"
-          + (f" ({failed} failed, will retry next run)" if failed else ""))
+            print(f"  markets: {i}/{len(missing)} checked, {found} found...")
+    resolved_n = con.execute(
+        "SELECT COUNT(*) c FROM markets WHERE resolved = 1").fetchone()["c"]
+    print(f"markets: {done} checked, {found} returned by Gamma"
+          + (f", {failed} failed (will retry next run)" if failed else "")
+          + f"; db now has {resolved_n} resolved markets")
 
 
 def cmd_ingest(con, cfg, args):
@@ -106,6 +111,41 @@ def cmd_backfill(con, cfg, args):
     print(f"backfill: +{added_total} historical trades from {len(wallets)} wallets")
     _refresh_markets(con, client)
     print("now run: python3 -m polywhale score   (track records should appear)")
+
+
+def cmd_stats(con, cfg, args):
+    """X-ray every pipeline stage so an empty result can be localized."""
+    def one(sql, *p):
+        return con.execute(sql, p).fetchone()[0]
+
+    print(f"trades (fills):            {one('SELECT COUNT(*) FROM trades'):,}")
+    print(f"  distinct wallets:        {one('SELECT COUNT(DISTINCT wallet) FROM trades'):,}")
+    print(f"  distinct markets:        "
+          f"{one('SELECT COUNT(DISTINCT condition_id) FROM trades'):,}")
+    print(f"  longshot BUY fills:      "
+          f"{one('SELECT COUNT(*) FROM trades WHERE side = ? AND price >= ? AND price < ?', 'BUY', cfg.min_price, cfg.max_price):,}"
+          f"  (side=BUY, price {cfg.min_price}-{cfg.max_price})")
+    print(f"markets rows:              {one('SELECT COUNT(*) FROM markets'):,}")
+    print(f"  closed:                  {one('SELECT COUNT(*) FROM markets WHERE closed = 1'):,}")
+    print(f"  resolved:                {one('SELECT COUNT(*) FROM markets WHERE resolved = 1'):,}")
+    print(f"fills matched to a market: "
+          f"{one('SELECT COUNT(*) FROM trades t JOIN markets m ON m.condition_id = t.condition_id'):,}")
+    print(f"fills on resolved markets: "
+          f"{one('SELECT COUNT(*) FROM trades t JOIN markets m ON m.condition_id = t.condition_id WHERE m.resolved = 1'):,}")
+    positions = db.resolved_longshot_buys(con, cfg)
+    print(f"resolved longshot positions >= ${cfg.min_position_cash:,.0f}: {len(positions):,}")
+
+    print("\nsample market rows (eyeball closed/resolved parsing):")
+    for r in con.execute("SELECT condition_id, closed, resolved, winning_index "
+                         "FROM markets LIMIT 3"):
+        print(f"  {r['condition_id'][:20]}...  closed={r['closed']} "
+              f"resolved={r['resolved']} winner={r['winning_index']}")
+    print("sample trade condition_ids with NO market row (eyeball id format):")
+    for r in con.execute(
+            """SELECT DISTINCT t.condition_id FROM trades t
+               LEFT JOIN markets m ON m.condition_id = t.condition_id
+               WHERE m.condition_id IS NULL AND t.condition_id != '' LIMIT 3"""):
+        print(f"  {r['condition_id']}")
 
 
 def cmd_rank(con, cfg, args):
@@ -286,6 +326,7 @@ def main():
                    help="seconds between wallets (be polite to the API)")
 
     sub.add_parser("resolve", help="refresh market resolutions only")
+    sub.add_parser("stats", help="pipeline diagnostics: counts at every stage")
 
     p = sub.add_parser("rank", help="open bets ranked by total whale dollars")
     p.add_argument("--top", type=int, default=20)
@@ -329,8 +370,9 @@ def main():
 
     con = db.connect(cfg.db_path)
     {"ingest": cmd_ingest, "backfill": cmd_backfill, "resolve": cmd_resolve,
-     "rank": cmd_rank, "ev": cmd_ev, "report": cmd_report, "score": cmd_score,
-     "signals": cmd_signals, "backtest": cmd_backtest}[args.command](con, cfg, args)
+     "stats": cmd_stats, "rank": cmd_rank, "ev": cmd_ev, "report": cmd_report,
+     "score": cmd_score, "signals": cmd_signals,
+     "backtest": cmd_backtest}[args.command](con, cfg, args)
 
 
 if __name__ == "__main__":
