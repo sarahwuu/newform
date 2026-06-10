@@ -60,6 +60,8 @@ def upsert_trades(con, raw_trades):
     inserted = 0
     seen = 0
     for t in raw_trades:
+        if not t.get("conditionId") or not t.get("proxyWallet"):
+            continue    # rows without a market or wallet id are unusable
         seen += 1
         if seen % 500 == 0:
             con.commit()
@@ -105,8 +107,11 @@ def upsert_market(con, m):
     """Store a Gamma API market row, deriving resolution state.
 
     Gamma encodes resolution in `outcomePrices` (a JSON string list): once a
-    market resolves, the winning outcome's price is pinned to ~1.
+    market resolves, the winning outcome's price is pinned to ~1. Callers
+    batching many markets should con.commit() themselves periodically.
     """
+    if not m.get("conditionId"):
+        return
     prices = [float(p) for p in json.loads(m.get("outcomePrices") or "[]")]
     closed = bool(m.get("closed"))
     resolved = closed and bool(prices) and max(prices) >= 0.95
@@ -139,7 +144,8 @@ def condition_ids_missing_or_unresolved(con):
     rows = con.execute(
         """SELECT DISTINCT t.condition_id FROM trades t
            LEFT JOIN markets m ON m.condition_id = t.condition_id
-           WHERE m.condition_id IS NULL OR m.resolved = 0"""
+           WHERE t.condition_id != ''
+             AND (m.condition_id IS NULL OR m.resolved = 0)"""
     ).fetchall()
     return [r["condition_id"] for r in rows]
 

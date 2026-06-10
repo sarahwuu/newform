@@ -29,6 +29,31 @@ def _fmt_ts(ts):
     return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d %H:%M")
 
 
+def _refresh_markets(con, client):
+    """Fetch resolution status for every market we lack, chunk by chunk.
+
+    One bad chunk must never sink the rest: failures are skipped and counted,
+    and everything fetched so far stays saved.
+    """
+    missing = db.condition_ids_missing_or_unresolved(con)
+    if not missing:
+        print("markets: nothing to refresh")
+        return
+    chunk, done, failed = 20, 0, 0
+    for i in range(0, len(missing), chunk):
+        batch = missing[i:i + chunk]
+        try:
+            for m in client.markets_by_condition_ids(batch):
+                db.upsert_market(con, m)
+            done += len(batch)
+        except Exception:
+            failed += len(batch)
+        if i and i % 2000 == 0:
+            print(f"  markets: {i}/{len(missing)} checked...")
+    print(f"markets: refreshed {done} of {len(missing)}"
+          + (f" ({failed} failed, will retry next run)" if failed else ""))
+
+
 def cmd_ingest(con, cfg, args):
     client = PolymarketClient()
     try:
@@ -39,15 +64,14 @@ def cmd_ingest(con, cfg, args):
         print(f"(trade fetch interrupted, keeping what we got: {exc})")
         added = "?"
     print(f"trades: +{added} new rows")
-
-    missing = db.condition_ids_missing_or_unresolved(con)
-    if missing:
-        markets = client.markets_by_condition_ids(missing)
-        for m in markets:
-            db.upsert_market(con, m)
-        print(f"markets: refreshed {len(markets)} of {len(missing)} unresolved")
+    _refresh_markets(con, client)
     total = con.execute("SELECT COUNT(*) c FROM trades").fetchone()["c"]
     print(f"db now holds {total} whale trades")
+
+
+def cmd_resolve(con, cfg, args):
+    """Just the market-resolution refresh — finishes an interrupted run."""
+    _refresh_markets(con, PolymarketClient())
 
 
 def cmd_backfill(con, cfg, args):
@@ -80,13 +104,7 @@ def cmd_backfill(con, cfg, args):
             print(f"  {i}/{len(wallets)} wallets, +{added_total} trades so far")
         time.sleep(args.pause)
     print(f"backfill: +{added_total} historical trades from {len(wallets)} wallets")
-
-    missing = db.condition_ids_missing_or_unresolved(con)
-    if missing:
-        markets = client.markets_by_condition_ids(missing)
-        for m in markets:
-            db.upsert_market(con, m)
-        print(f"markets: refreshed {len(markets)} of {len(missing)} unresolved")
+    _refresh_markets(con, client)
     print("now run: python3 -m polywhale score   (track records should appear)")
 
 
@@ -267,6 +285,8 @@ def main():
     p.add_argument("--pause", type=float, default=0.2,
                    help="seconds between wallets (be polite to the API)")
 
+    sub.add_parser("resolve", help="refresh market resolutions only")
+
     p = sub.add_parser("rank", help="open bets ranked by total whale dollars")
     p.add_argument("--top", type=int, default=20)
     p.add_argument("--days", type=int, default=None, help="lookback window (default config)")
@@ -308,8 +328,8 @@ def main():
         cfg.max_price = args.max_price
 
     con = db.connect(cfg.db_path)
-    {"ingest": cmd_ingest, "backfill": cmd_backfill, "rank": cmd_rank,
-     "ev": cmd_ev, "report": cmd_report, "score": cmd_score,
+    {"ingest": cmd_ingest, "backfill": cmd_backfill, "resolve": cmd_resolve,
+     "rank": cmd_rank, "ev": cmd_ev, "report": cmd_report, "score": cmd_score,
      "signals": cmd_signals, "backtest": cmd_backtest}[args.command](con, cfg, args)
 
 

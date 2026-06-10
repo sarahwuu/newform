@@ -82,7 +82,7 @@ class PolymarketClient:
     def markets_by_condition_ids(self, condition_ids, chunk=20):
         """Fetch Gamma market metadata for a set of conditionIds."""
         out = []
-        ids = list(condition_ids)
+        ids = [c for c in condition_ids if c]   # blank ids 422 the whole call
         for i in range(0, len(ids), chunk):
             params = [("condition_ids", c) for c in ids[i:i + chunk]]
             out.extend(self._get(f"{GAMMA_API}/markets", params) or [])
