@@ -114,6 +114,26 @@ def test_pagination_cap_stops_cleanly():
     list(client.iter_large_trades(2000, user="0xabc"))
     assert seen_params[0]["user"] == "0xabc"
 
+    # Gamma hides closed markets by default: ids missing from the first pass
+    # must be retried with closed=true, or no historical bet ever resolves.
+    requests_seen = []
+
+    def fake_markets(url, params):
+        requests_seen.append(params)
+        if ("closed", "true") in params:
+            return [{"conditionId": "0xclosed", "closed": True,
+                     "outcomePrices": '["1", "0"]'}]
+        return [{"conditionId": "0xopen", "closed": False,
+                 "outcomePrices": '["0.4", "0.6"]'}]
+
+    client._get = fake_markets
+    got = client.markets_by_condition_ids(["0xopen", "0xclosed"])
+    assert {m["conditionId"] for m in got} == {"0xopen", "0xclosed"}, got
+    assert len(requests_seen) == 2
+    assert ("closed", "true") in requests_seen[1]
+    assert ("condition_ids", "0xclosed") in requests_seen[1]
+    assert ("condition_ids", "0xopen") not in requests_seen[1]  # only leftovers
+
     # A 4xx on the FIRST page is a real error and must still raise.
     client._get = lambda url, params: (_ for _ in ()).throw(ClientError("400"))
     try:
@@ -121,7 +141,8 @@ def test_pagination_cap_stops_cleanly():
         raise AssertionError("first-page ClientError should propagate")
     except ClientError:
         pass
-    print("  api: stops cleanly at pagination cap, first-page errors still raise")
+    print("  api: pagination cap ok, closed-market second pass ok, "
+          "first-page errors still raise")
 
 
 def resolved_gamma(cond):

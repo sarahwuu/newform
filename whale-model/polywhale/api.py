@@ -80,10 +80,28 @@ class PolymarketClient:
                 return
 
     def markets_by_condition_ids(self, condition_ids, chunk=20):
-        """Fetch Gamma market metadata for a set of conditionIds."""
+        """Fetch Gamma market metadata for a set of conditionIds.
+
+        Gamma omits CLOSED markets from /markets unless asked explicitly, and
+        resolved bets are always on closed markets — so any id missing from
+        the default pass is retried with closed=true. Without the second pass
+        no historical bet ever resolves.
+        """
         out = []
         ids = [c for c in condition_ids if c]   # blank ids 422 the whole call
         for i in range(0, len(ids), chunk):
-            params = [("condition_ids", c) for c in ids[i:i + chunk]]
-            out.extend(self._get(f"{GAMMA_API}/markets", params) or [])
+            batch = ids[i:i + chunk]
+            got = self._fetch_markets(batch)
+            have = {(m.get("conditionId") or "").lower() for m in got}
+            leftover = [c for c in batch if c.lower() not in have]
+            if leftover:
+                got += self._fetch_markets(leftover, closed=True)
+            out.extend(got)
         return out
+
+    def _fetch_markets(self, batch, closed=None):
+        params = [("condition_ids", c) for c in batch]
+        params.append(("limit", str(max(len(batch), 20))))
+        if closed is not None:
+            params.append(("closed", "true" if closed else "false"))
+        return self._get(f"{GAMMA_API}/markets", params) or []
