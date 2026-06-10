@@ -78,12 +78,16 @@ def test_backtest_walk_forward():
     res = walk_forward(trades, CFG, stake=100.0)
     assert res.copied > 50, f"too few copies: {res.copied}"
     assert res.roi > 0.3, f"copying sharps should be clearly +EV, got {res.roi:.1%}"
+    # The model's claimed EV at decision time should track realized ROI.
+    assert abs(res.predicted_ev - res.roi) < 0.5, \
+        f"EV claim {res.predicted_ev:.1%} vs realized {res.roi:.1%}"
 
     # Sanity: copying ONLY zero-edge wallets must not look profitable.
     noise_only = [t for t in trades if t["wallet"].startswith("noise")]
     res_noise = walk_forward(noise_only, CFG, stake=100.0)
     assert res_noise.roi < res.roi, "noise outperformed sharps?!"
-    print(f"  backtest: copied {res.copied} bets, ROI {res.roi:.1%} "
+    print(f"  backtest: copied {res.copied} bets, ROI {res.roi:.1%} vs "
+          f"model EV claim {res.predicted_ev:.1%} "
           f"(noise-only control: {res_noise.roi:.1%} on {res_noise.copied} copies)")
 
 
@@ -222,11 +226,22 @@ def test_rank_orders_by_total_whale_notional():
 
         class StubClient:  # Gamma response for live (unresolved) markets
             def markets_by_condition_ids(self, ids):
-                return [{"conditionId": "0xmktB", "outcomePrices": '["0.82", "0.18"]'}]
+                return [
+                    {"conditionId": "0xmktB", "outcomePrices": '["0.82", "0.18"]'},
+                    {"conditionId": "0xmktA", "outcomePrices": '["0.85", "0.15"]'},
+                ]
 
         attach_live_prices(bets, StubClient())
         assert bets[0].current_price == 0.18        # outcome_index 1
-        assert bets[1].current_price is None        # not returned -> stays offline
+
+        # EV layer: whale-a's record is 8/8 wins at 0.10 entries, so its
+        # shrunken alpha = (8+3)/(0.8+3) ~= 2.895 and the implied true prob of
+        # its open 0.10 entry is ~0.29; at the live 0.15 price EV ~= +93%.
+        assert bets[0].q_smart is None              # no smart money on mktB
+        assert bets[0].expected_value() is None
+        assert abs(bets[1].q_smart - 0.2895) < 0.01, bets[1].q_smart
+        ev = bets[1].expected_value()
+        assert 0.85 < ev < 1.0, f"expected ~+93% EV, got {ev}"
 
         md = build_markdown(bets[:10], cfg, now_ts=1_900_000_500)
         html_out = build_html(bets[:10], cfg, now_ts=1_900_000_500)

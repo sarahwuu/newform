@@ -16,6 +16,9 @@ from . import db
 from .model import score_wallets
 
 
+MAX_TRUE_PROB = 0.92   # never let alpha extrapolation claim near-certainty
+
+
 @dataclass
 class RankedBet:
     condition_id: str
@@ -33,7 +36,20 @@ class RankedBet:
     latest_ts: int = 0
     end_ts: int = None                # scheduled market end (insider bets cluster near it)
     current_price: float = None       # live market price (None when offline)
+    q_smart: float = None             # est. true probability implied by smart whales
     top_wallets: list = field(default_factory=list)  # (name, cash, is_smart, tags)
+
+    def expected_value(self):
+        """EV per $1 at the CURRENT price, from the smart whales' implied edge.
+
+        q_smart is each proven whale's entry price scaled by their alpha
+        (their demonstrated actual/expected win ratio), stake-weighted. If the
+        market already repriced past the whales' implied probability, this
+        goes negative — joining late means the edge is gone.
+        """
+        if self.q_smart is None or not self.current_price:
+            return None
+        return self.q_smart / self.current_price - 1
 
 
 def rank_bets(con, cfg, window_days=None):
@@ -42,7 +58,7 @@ def rank_bets(con, cfg, window_days=None):
         db.resolved_longshot_buys(con, cfg),
         prior_strength=cfg.prior_strength,
     )
-    smart = {s.wallet for s in scores if s.qualifies(cfg)}
+    smart = {s.wallet: s for s in scores if s.qualifies(cfg)}
 
     days = cfg.signal_window_days if window_days is None else window_days
     now = int(time.time())
@@ -72,6 +88,16 @@ def rank_bets(con, cfg, window_days=None):
                             p["wallet"] in smart, ",".join(tags)))
         wallets.sort(key=lambda w: -w[1])
 
+        # Stake-weighted true-probability estimate from proven whales only:
+        # each smart wallet's entry price scaled by its demonstrated alpha.
+        smart_pos = [p for p in positions if p["wallet"] in smart]
+        q_smart = None
+        if smart_pos:
+            q_smart = sum(
+                p["cash"] * min(MAX_TRUE_PROB, smart[p["wallet"]].alpha * p["price"])
+                for p in smart_pos
+            ) / sum(p["cash"] for p in smart_pos)
+
         ranked.append(RankedBet(
             condition_id=condition_id,
             title=positions[0]["title"] or condition_id,
@@ -79,7 +105,8 @@ def rank_bets(con, cfg, window_days=None):
             outcome_index=outcome_index,
             event_slug=event_slug,
             total_notional=notional,
-            smart_notional=sum(p["cash"] for p in positions if p["wallet"] in smart),
+            smart_notional=sum(p["cash"] for p in smart_pos),
+            q_smart=q_smart,
             fresh_notional=fresh_notional,
             burst_notional=sum(p["burst_cash"] for p in positions),
             n_trades=sum(p["fills"] for p in positions),

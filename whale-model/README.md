@@ -38,6 +38,7 @@ pip install -r requirements.txt
 
 python -m polywhale ingest      # pull recent ≥$2k fills + market resolutions
 python -m polywhale rank        # open bets ranked by total whale dollars
+python -m polywhale ev          # open bets ranked by EXPECTED VALUE at current price
 python -m polywhale score       # rank whale wallets (alpha, z, ROI, smart flag)
 python -m polywhale signals     # open markets where smart whales hold fresh longshots
 python -m polywhale backtest    # walk-forward copy-trade simulation
@@ -63,6 +64,22 @@ can tell a bet you can still join from one you'd be chasing (`--no-live` skips
 the fetch). `--days` controls the lookback window, `--wallets` how many top
 wallets are shown per bet. `signals` is the stricter cut of the same data: only
 bets backed by proven whales.
+
+**`ev` is the value view — the actual point of the model.** Whale dollars are
+consensus, not edge; EV is computed from the proven whales only:
+
+    q (model prob) = smart whales' entry price x their demonstrated alpha,
+                     stake-weighted, capped at 0.92
+    EV per $1      = q / CURRENT price - 1
+
+Pricing EV at the *current* price means a bet that already repriced past the
+whales' implied probability turns EV-negative and drops off — the screen never
+tells you to chase. `--min-ev 0.10` (default) hides anything under +10%.
+Calibration check: in the synthetic backtest the model's claimed EV at decision
+time was +82% vs. +86% realized ROI (`backtest` prints this comparison —
+"model EV claim" — on your real data too). EV is only as good as the wallets'
+track records: with a young DB nothing will be EV-rated yet, and a handful of
+qualified whales means wide error bars. Treat sub-+20% readings as noise.
 
 **Freshness:** the Data API is the live tape — fills appear within seconds — so
 the board is as current as your last `ingest`. Run it on a schedule and re-run

@@ -21,11 +21,18 @@ class BacktestResult:
     staked: float = 0.0
     profit: float = 0.0
     expected_wins: float = 0.0
+    predicted_ev_sum: float = 0.0   # sum of model EV at each copy decision
     by_wallet: dict = field(default_factory=dict)
 
     @property
     def roi(self):
         return self.profit / self.staked if self.staked else 0.0
+
+    @property
+    def predicted_ev(self):
+        """Average EV the model claimed at decision time. If this tracks the
+        realized ROI, the alpha-based EV estimates are honest."""
+        return self.predicted_ev_sum / self.copied if self.copied else 0.0
 
 
 class _Running:
@@ -51,12 +58,14 @@ class _Running:
             self.variance += p * (1 - p)
             self.i += 1
 
+    def alpha(self, cfg):
+        return (self.wins + cfg.prior_strength) / (self.expected + cfg.prior_strength)
+
     def qualifies(self, cfg):
         if self.n < cfg.min_resolved or self.variance <= 0:
             return False
-        alpha = (self.wins + cfg.prior_strength) / (self.expected + cfg.prior_strength)
         z = (self.wins - self.expected) / math.sqrt(self.variance)
-        return z >= cfg.min_z and alpha >= cfg.min_alpha
+        return z >= cfg.min_z and self.alpha(cfg) >= cfg.min_alpha
 
 
 def walk_forward(resolved_trades, cfg, stake=100.0):
@@ -76,6 +85,9 @@ def walk_forward(resolved_trades, cfg, stake=100.0):
             result.staked += stake
             result.profit += pnl
             result.expected_wins += price
+            # Under the multiplicative skill model, copying at the whale's
+            # entry price has EV = alpha - 1 per $1 regardless of the price.
+            result.predicted_ev_sum += w.alpha(cfg) - 1
             name = t["pseudonym"] or t["wallet"]
             agg = result.by_wallet.setdefault(name, {"copied": 0, "profit": 0.0})
             agg["copied"] += 1

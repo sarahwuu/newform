@@ -2,6 +2,7 @@
 
   python -m polywhale ingest     # pull recent >=$10k trades + market resolutions
   python -m polywhale rank       # open bets ranked by total whale dollars
+  python -m polywhale ev         # open bets ranked by expected value (smart-whale basis)
   python -m polywhale report     # write the top-10 board to Markdown + HTML
   python -m polywhale score      # rank whale wallets by longshot skill
   python -m polywhale signals    # open markets where smart whales are positioned
@@ -98,6 +99,46 @@ def cmd_rank(con, cfg, args):
         print()
 
 
+def cmd_ev(con, cfg, args):
+    """Rank open bets by expected value at the CURRENT price."""
+    bets = [b for b in rank_bets(con, cfg, window_days=args.days)
+            if b.q_smart is not None]
+    if not bets:
+        print("no EV-rated bets yet: EV needs qualified smart whales holding open\n"
+              "positions, which needs resolved history in the DB — keep ingesting\n"
+              "daily (or backfill from Dune), then re-run.")
+        return
+    try:
+        attach_live_prices(bets, PolymarketClient())
+    except Exception as exc:
+        print(f"(live prices unavailable — EV needs current prices: {exc})")
+        return
+    rated = sorted(
+        ((b.expected_value(), b) for b in bets if b.expected_value() is not None),
+        key=lambda x: -x[0],
+    )
+    shown = [(ev, b) for ev, b in rated if ev >= args.min_ev]
+    if not shown:
+        best = rated[0][0] if rated else None
+        print("no open bet clears the EV bar right now"
+              + (f" (best is {best:+.0%})" if best is not None else ""))
+        return
+    print(f"open bets by expected value at current price "
+          f"(smart-whale basis, min EV {args.min_ev:+.0%})\n")
+    for i, (ev, b) in enumerate(shown[:args.top], 1):
+        print(f"{i:>2}. EV {ev:+.0%}  {b.title}  ->  {b.outcome}")
+        print(f"    model prob {b.q_smart:.2f} vs price {b.current_price:.2f}"
+              f" | smart ${b.smart_notional:,.0f} of ${b.total_notional:,.0f}"
+              f" | whales entered {b.weighted_entry:.2f}"
+              f" | latest {_fmt_ts(b.latest_ts)}")
+        for name, cash, is_smart, tags in b.top_wallets[:3]:
+            if is_smart:
+                print(f"      {name:<24} ${cash:,.0f}  [smart{',' + tags if tags else ''}]")
+        if b.event_slug:
+            print(f"    https://polymarket.com/event/{b.event_slug}")
+        print()
+
+
 def cmd_report(con, cfg, args):
     bets = rank_bets(con, cfg, window_days=args.days)[:args.top]
     if not args.no_live:
@@ -155,6 +196,8 @@ def cmd_backtest(con, cfg, args):
     print(f"total staked:   ${res.staked:,.0f}")
     print(f"profit:         ${res.profit:,.0f}")
     print(f"ROI:            {res.roi:.1%}")
+    print(f"model EV claim: {res.predicted_ev:.1%}  "
+          f"(close to ROI = EV estimates are honest)")
     top = sorted(res.by_wallet.items(), key=lambda kv: -kv[1]["profit"])[:10]
     if top:
         print("\ntop copied wallets:")
@@ -180,6 +223,12 @@ def main():
     p.add_argument("--wallets", type=int, default=3, help="top wallets shown per bet")
     p.add_argument("--no-live", action="store_true",
                    help="skip fetching current prices from Gamma")
+
+    p = sub.add_parser("ev", help="open bets ranked by expected value")
+    p.add_argument("--top", type=int, default=15)
+    p.add_argument("--days", type=int, default=None)
+    p.add_argument("--min-ev", type=float, default=0.10,
+                   help="minimum EV per $1 to show (default +10%%)")
 
     p = sub.add_parser("report", help="write top-N board to Markdown + HTML")
     p.add_argument("--top", type=int, default=10)
@@ -209,8 +258,8 @@ def main():
         cfg.max_price = args.max_price
 
     con = db.connect(cfg.db_path)
-    {"ingest": cmd_ingest, "rank": cmd_rank, "report": cmd_report,
-     "score": cmd_score, "signals": cmd_signals,
+    {"ingest": cmd_ingest, "rank": cmd_rank, "ev": cmd_ev,
+     "report": cmd_report, "score": cmd_score, "signals": cmd_signals,
      "backtest": cmd_backtest}[args.command](con, cfg, args)
 
 

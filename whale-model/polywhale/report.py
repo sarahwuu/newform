@@ -54,13 +54,35 @@ def build_markdown(bets, cfg, now_ts):
         )
     if not bets:
         lines.append("| — | no open whale longshot bets in window | | | | | | |")
+
+    rated = sorted(
+        ((b.expected_value(), b) for b in bets if b.expected_value() is not None),
+        key=lambda x: -x[0],
+    )
+    lines += ["", "## Best EV right now", ""]
+    if rated:
+        lines += [
+            "| EV | Model prob | Price | Smart $ | Bet |",
+            "|---:|-----------:|------:|--------:|-----|",
+        ]
+        for ev, b in rated[:10]:
+            label = f"{b.title} — **{b.outcome}**"
+            bet = (f"[{label}]({POLYMARKET_EVENT}{b.event_slug})"
+                   if b.event_slug else label)
+            lines.append(f"| {ev:+.0%} | {b.q_smart:.2f} | {b.current_price:.2f} "
+                         f"| ${b.smart_notional:,.0f} | {bet} |")
+    else:
+        lines.append("_No EV-rated bets yet — EV needs proven smart whales holding "
+                     "open positions, which takes accumulated resolved history._")
     lines += [
         "",
         "**Smart $** = money from wallets whose resolved longshot record beats "
         "their entry odds (z ≥ {:.1f}, ≥ {} positions). **Now** = live price "
         "(drift vs whales' avg entry — large positive drift means you'd be "
-        "chasing). Patterns flag the burner-insider signature: money arriving "
-        "suddenly, from fresh wallets, near scheduled close.".format(
+        "chasing). **EV** = smart whales' alpha-implied probability ÷ current "
+        "price − 1; it is only as good as the wallets' track records. Patterns "
+        "flag the burner-insider signature: money arriving suddenly, from "
+        "fresh wallets, near scheduled close.".format(
             cfg.min_z, cfg.min_resolved),
         "",
         "_Research screener, not financial advice. Read each market's "
