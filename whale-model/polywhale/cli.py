@@ -11,6 +11,7 @@
 """
 
 import argparse
+import json
 import sys
 import time
 from datetime import datetime, timezone
@@ -223,6 +224,76 @@ def cmd_patterns(con, cfg, args):
           "backfill window, so treat it as approximate.")
 
 
+def cmd_hunt(con, cfg, args):
+    """Live insider-signature screen — the cohort that tested best on
+    history: FRESH wallets holding BIG open longshots NEAR market close.
+
+    Unlike rank (consensus dollars) this surfaces individual positions
+    matching the signature, newest wallet money first.
+    """
+    now = int(time.time())
+    since = now - cfg.signal_window_days * 86400
+    day = 86400
+    rows = con.execute(
+        """SELECT t.wallet, MAX(t.pseudonym) AS pseudonym, t.condition_id,
+                  MAX(t.outcome) AS outcome, t.outcome_index,
+                  SUM(t.cash) AS cash,
+                  SUM(t.cash) / SUM(t.size) AS price,
+                  MIN(t.ts) AS ts,
+                  MAX(t.title) AS title,
+                  MAX(t.event_slug) AS event_slug,
+                  MAX(m.end_ts) AS end_ts,
+                  MAX(w.first_ts) AS first_ts
+           FROM trades t
+           LEFT JOIN markets m ON m.condition_id = t.condition_id
+           JOIN (SELECT wallet, MIN(ts) AS first_ts
+                 FROM trades GROUP BY wallet) w ON w.wallet = t.wallet
+           WHERE t.side = 'BUY' AND t.price >= ? AND t.price < ?
+             AND t.ts >= ? AND COALESCE(m.resolved, 0) = 0
+           GROUP BY t.wallet, t.condition_id, t.outcome_index
+           HAVING SUM(t.cash) >= ?""",
+        (cfg.min_price, cfg.max_price, since, cfg.min_position_cash),
+    ).fetchall()
+
+    hits = [r for r in rows
+            if r["ts"] - r["first_ts"] <= args.max_wallet_age * day
+            and r["end_ts"] is not None
+            and 0 <= r["end_ts"] - now <= args.days_to_end * day]
+    hits.sort(key=lambda r: -r["cash"])
+    if not hits:
+        print(f"no live signature hits (fresh wallet <= {args.max_wallet_age}d, "
+              f"position >= ${cfg.min_position_cash:,.0f} at "
+              f"{cfg.min_price:.2f}-{cfg.max_price:.2f}, "
+              f"market ends <= {args.days_to_end}d) — re-run after the next ingest")
+        return
+
+    prices = {}
+    try:
+        client = PolymarketClient()
+        for m in client.markets_by_condition_ids({r["condition_id"] for r in hits}):
+            ps = [float(p) for p in json.loads(m.get("outcomePrices") or "[]")]
+            prices[m.get("conditionId")] = ps
+    except Exception:
+        pass
+
+    print(f"live insider-signature positions (historical cohort: alpha 1.37, "
+          f"+150% roi on n=30 — suggestive, not proven)\n")
+    for i, r in enumerate(hits[:args.top], 1):
+        ps = prices.get(r["condition_id"]) or []
+        now_p = (f"{ps[r['outcome_index']]:.2f}"
+                 if 0 <= r["outcome_index"] < len(ps) else "n/a")
+        wallet_age = (r["ts"] - r["first_ts"]) / day
+        ends_in = (r["end_ts"] - now) / day
+        print(f"{i:>2}. {r['title']}  ->  {r['outcome']}")
+        print(f"    {r['pseudonym'] or r['wallet']}: ${r['cash']:,.0f} @ "
+              f"{r['price']:.2f} (now {now_p})"
+              f" | wallet {wallet_age:.1f}d old at entry"
+              f" | market ends in {ends_in:.1f}d")
+        if r["event_slug"]:
+            print(f"    https://polymarket.com/event/{r['event_slug']}")
+        print()
+
+
 def cmd_rank(con, cfg, args):
     bets = rank_bets(con, cfg, window_days=args.days)
     if not bets:
@@ -425,6 +496,13 @@ def main():
                    default=5_000.0,
                    help="position floor for the cohort study (default $5k)")
 
+    p = sub.add_parser("hunt", help="live insider-signature screen")
+    p.add_argument("--top", type=int, default=15)
+    p.add_argument("--max-wallet-age", type=float, default=7.0,
+                   help="wallet age in days at entry to count as fresh")
+    p.add_argument("--days-to-end", type=float, default=7.0,
+                   help="market must end within this many days")
+
     p = sub.add_parser("rank", help="open bets ranked by total whale dollars")
     p.add_argument("--top", type=int, default=20)
     p.add_argument("--days", type=int, default=None, help="lookback window (default config)")
@@ -471,8 +549,8 @@ def main():
 
     con = db.connect(cfg.db_path)
     {"ingest": cmd_ingest, "backfill": cmd_backfill, "resolve": cmd_resolve,
-     "stats": cmd_stats, "patterns": cmd_patterns, "rank": cmd_rank,
-     "ev": cmd_ev, "report": cmd_report, "score": cmd_score,
+     "stats": cmd_stats, "patterns": cmd_patterns, "hunt": cmd_hunt,
+     "rank": cmd_rank, "ev": cmd_ev, "report": cmd_report, "score": cmd_score,
      "signals": cmd_signals, "backtest": cmd_backtest}[args.command](con, cfg, args)
 
 
