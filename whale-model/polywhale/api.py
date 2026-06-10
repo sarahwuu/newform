@@ -46,23 +46,29 @@ class PolymarketClient:
                 time.sleep(delay)
                 delay *= 2
 
-    def iter_large_trades(self, min_cash, page_size=500, max_pages=40, taker_only=True):
+    def iter_large_trades(self, min_cash, page_size=500, max_pages=40,
+                          taker_only=True, user=None):
         """Yield recent trades with cash value >= min_cash, newest first.
 
-        The Data API filters by notional server-side (filterType=CASH) and
-        caps pagination depth (~3,500 trades); when we hit the cap we stop
-        cleanly with whatever the API allowed. Run ingest on a schedule to
-        accumulate deeper history in the local DB.
+        With `user` set, returns that wallet's own trade history instead of
+        the global tape — this is how `backfill` reconstructs track records
+        for wallets we've already seen, without waiting for new bets to
+        resolve. The Data API filters by notional server-side (filterType=
+        CASH) and caps pagination depth (~3,500 trades); when we hit the cap
+        we stop cleanly with whatever the API allowed.
         """
         for page in range(max_pages):
+            params = {
+                "limit": page_size,
+                "offset": page * page_size,
+                "takerOnly": str(bool(taker_only)).lower(),
+                "filterType": "CASH",
+                "filterAmount": int(min_cash),
+            }
+            if user:
+                params["user"] = user
             try:
-                batch = self._get(f"{DATA_API}/trades", {
-                    "limit": page_size,
-                    "offset": page * page_size,
-                    "takerOnly": str(bool(taker_only)).lower(),
-                    "filterType": "CASH",
-                    "filterAmount": int(min_cash),
-                })
+                batch = self._get(f"{DATA_API}/trades", params)
             except ClientError:
                 if page == 0:
                     raise

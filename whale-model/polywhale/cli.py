@@ -1,6 +1,7 @@
 """Command-line interface.
 
-  python -m polywhale ingest     # pull recent >=$10k trades + market resolutions
+  python -m polywhale ingest     # pull the recent whale tape + market resolutions
+  python -m polywhale backfill   # pull known wallets' PAST trades -> instant track records
   python -m polywhale rank       # open bets ranked by total whale dollars
   python -m polywhale ev         # open bets ranked by expected value (smart-whale basis)
   python -m polywhale report     # write the top-10 board to Markdown + HTML
@@ -47,6 +48,46 @@ def cmd_ingest(con, cfg, args):
         print(f"markets: refreshed {len(markets)} of {len(missing)} unresolved")
     total = con.execute("SELECT COUNT(*) c FROM trades").fetchone()["c"]
     print(f"db now holds {total} whale trades")
+
+
+def cmd_backfill(con, cfg, args):
+    """Pull full trade history for every wallet we've seen on the tape.
+
+    This is the fast path to track records: instead of waiting weeks for
+    whales' new bets to resolve, fetch their PAST bets (already resolved)
+    and score those. Skips wallets backfilled within the last week.
+    """
+    client = PolymarketClient()
+    wallets = db.wallets_needing_backfill(con, max_age_days=args.max_age_days)
+    if args.limit:
+        wallets = wallets[:args.limit]
+    if not wallets:
+        print("all known wallets already backfilled recently")
+        return
+    print(f"backfilling {len(wallets)} wallets "
+          f"({args.pages} pages each, this can take a while)...")
+    added_total = 0
+    for i, wallet in enumerate(wallets, 1):
+        try:
+            added_total += db.upsert_trades(
+                con, client.iter_large_trades(
+                    cfg.ingest_min_cash, max_pages=args.pages, user=wallet))
+            db.mark_backfilled(con, wallet)
+        except Exception as exc:
+            con.commit()
+            print(f"  {wallet}: fetch failed, skipping ({exc})")
+        if i % 25 == 0:
+            print(f"  {i}/{len(wallets)} wallets, +{added_total} trades so far")
+        time.sleep(args.pause)
+    print(f"backfill: +{added_total} historical trades from {len(wallets)} wallets")
+
+    missing = db.condition_ids_missing_or_unresolved(con)
+    if missing:
+        markets = client.markets_by_condition_ids(missing)
+        for m in markets:
+            db.upsert_market(con, m)
+        print(f"markets: refreshed {len(markets)} of {len(missing)} unresolved")
+    print("now run: python3 -m polywhale score   (track records should appear)")
 
 
 def cmd_rank(con, cfg, args):
@@ -217,6 +258,15 @@ def main():
     p = sub.add_parser("ingest", help="pull recent large trades + resolutions")
     p.add_argument("--pages", type=int, default=40)
 
+    p = sub.add_parser("backfill", help="pull trade history for known wallets")
+    p.add_argument("--pages", type=int, default=4,
+                   help="history pages per wallet (500 trades each)")
+    p.add_argument("--limit", type=int, default=None, help="max wallets this run")
+    p.add_argument("--max-age-days", type=int, default=7,
+                   help="re-backfill wallets older than this")
+    p.add_argument("--pause", type=float, default=0.2,
+                   help="seconds between wallets (be polite to the API)")
+
     p = sub.add_parser("rank", help="open bets ranked by total whale dollars")
     p.add_argument("--top", type=int, default=20)
     p.add_argument("--days", type=int, default=None, help="lookback window (default config)")
@@ -258,9 +308,9 @@ def main():
         cfg.max_price = args.max_price
 
     con = db.connect(cfg.db_path)
-    {"ingest": cmd_ingest, "rank": cmd_rank, "ev": cmd_ev,
-     "report": cmd_report, "score": cmd_score, "signals": cmd_signals,
-     "backtest": cmd_backtest}[args.command](con, cfg, args)
+    {"ingest": cmd_ingest, "backfill": cmd_backfill, "rank": cmd_rank,
+     "ev": cmd_ev, "report": cmd_report, "score": cmd_score,
+     "signals": cmd_signals, "backtest": cmd_backtest}[args.command](con, cfg, args)
 
 
 if __name__ == "__main__":

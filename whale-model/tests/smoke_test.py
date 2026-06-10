@@ -108,6 +108,12 @@ def test_pagination_cap_stops_cleanly():
     assert len(got) == 1000, f"expected 2 full pages, got {len(got)}"
     assert calls == [0, 500, 1000], calls
 
+    # Per-wallet history mode (used by backfill) must pass the user param.
+    seen_params = []
+    client._get = lambda url, params: seen_params.append(params) or []
+    list(client.iter_large_trades(2000, user="0xabc"))
+    assert seen_params[0]["user"] == "0xabc"
+
     # A 4xx on the FIRST page is a real error and must still raise.
     client._get = lambda url, params: (_ for _ in ()).throw(ClientError("400"))
     try:

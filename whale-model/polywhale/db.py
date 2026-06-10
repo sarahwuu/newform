@@ -26,6 +26,11 @@ CREATE INDEX IF NOT EXISTS idx_trades_wallet ON trades (wallet);
 CREATE INDEX IF NOT EXISTS idx_trades_condition ON trades (condition_id);
 CREATE INDEX IF NOT EXISTS idx_trades_ts ON trades (ts);
 
+CREATE TABLE IF NOT EXISTS backfills (
+    wallet TEXT PRIMARY KEY,
+    ts     INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS markets (
     condition_id  TEXT PRIMARY KEY,
     question      TEXT,
@@ -199,6 +204,27 @@ def open_longshot_positions(con, cfg, since_ts, burst_cutoff):
         (burst_cutoff, cfg.min_price, cfg.max_price, since_ts,
          cfg.min_position_cash),
     ).fetchall()
+
+
+def wallets_needing_backfill(con, max_age_days=7):
+    """Wallets we've seen trade but haven't pulled history for recently."""
+    cutoff = int(time.time()) - max_age_days * 86400
+    rows = con.execute(
+        """SELECT DISTINCT t.wallet FROM trades t
+           LEFT JOIN backfills b ON b.wallet = t.wallet
+           WHERE b.wallet IS NULL OR b.ts < ?""",
+        (cutoff,),
+    ).fetchall()
+    return [r["wallet"] for r in rows]
+
+
+def mark_backfilled(con, wallet):
+    con.execute(
+        """INSERT INTO backfills (wallet, ts) VALUES (?, ?)
+           ON CONFLICT (wallet) DO UPDATE SET ts=excluded.ts""",
+        (wallet, int(time.time())),
+    )
+    con.commit()
 
 
 def wallet_fill_count(con, wallet):

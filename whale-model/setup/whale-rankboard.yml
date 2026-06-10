@@ -28,6 +28,7 @@ jobs:
         working-directory: whale-model
         run: |
           python -m polywhale --db data/polywhale.db ingest --pages 60
+          python -m polywhale --db data/polywhale.db backfill --max-age-days 14
           python -m polywhale --db data/polywhale.db report --top 10 \
             --out-md RANKBOARD.md --out-html ../docs/index.html
 
