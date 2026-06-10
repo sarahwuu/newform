@@ -31,6 +31,23 @@ CREATE TABLE IF NOT EXISTS backfills (
     ts     INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS paper_bets (
+    wallet        TEXT NOT NULL,
+    condition_id  TEXT NOT NULL,
+    outcome_index INTEGER NOT NULL,
+    outcome       TEXT,
+    title         TEXT,
+    event_slug    TEXT,
+    whale_cash    REAL,
+    whale_entry   REAL,
+    rec_price     REAL,              -- live price when recorded (our entry)
+    recorded_ts   INTEGER NOT NULL,
+    end_ts        INTEGER,
+    won           INTEGER,           -- NULL until the market resolves
+    graded_ts     INTEGER,
+    PRIMARY KEY (wallet, condition_id, outcome_index)
+);
+
 CREATE TABLE IF NOT EXISTS markets (
     condition_id  TEXT PRIMARY KEY,
     question      TEXT,
@@ -231,6 +248,44 @@ def mark_backfilled(con, wallet):
         (wallet, int(time.time())),
     )
     con.commit()
+
+
+def record_paper_bet(con, hit, rec_price, now_ts):
+    """Log a hunt hit to the prospective ledger. Returns 1 if new.
+
+    Prospective bets are the survivorship-free test of the insider
+    signature: recorded the moment the model surfaces them, graded only
+    by what happens afterwards.
+    """
+    cur = con.execute(
+        """INSERT OR IGNORE INTO paper_bets
+           (wallet, condition_id, outcome_index, outcome, title, event_slug,
+            whale_cash, whale_entry, rec_price, recorded_ts, end_ts)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+        (hit["wallet"], hit["condition_id"], hit["outcome_index"],
+         hit["outcome"], hit["title"], hit["event_slug"], hit["cash"],
+         hit["price"], rec_price, now_ts, hit["end_ts"]),
+    )
+    con.commit()
+    return cur.rowcount
+
+
+def grade_paper_bets(con):
+    """Mark ledger entries won/lost once their market resolves."""
+    pending = con.execute(
+        """SELECT p.rowid, p.outcome_index, m.winning_index
+           FROM paper_bets p
+           JOIN markets m ON m.condition_id = p.condition_id
+           WHERE p.won IS NULL AND m.resolved = 1"""
+    ).fetchall()
+    now = int(time.time())
+    for r in pending:
+        con.execute(
+            "UPDATE paper_bets SET won = ?, graded_ts = ? WHERE rowid = ?",
+            (int(r["outcome_index"] == r["winning_index"]), now, r["rowid"]),
+        )
+    con.commit()
+    return len(pending)
 
 
 def wallet_fill_count(con, wallet):

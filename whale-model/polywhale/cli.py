@@ -276,8 +276,17 @@ def cmd_hunt(con, cfg, args):
     except Exception:
         pass
 
+    recorded = 0
+    for r in hits:    # every hit enters the prospective ledger, shown or not
+        ps = prices.get(r["condition_id"]) or []
+        rec = (ps[r["outcome_index"]]
+               if 0 <= r["outcome_index"] < len(ps) else r["price"])
+        recorded += db.record_paper_bet(con, r, rec, now)
+
     print(f"live insider-signature positions (historical cohort: alpha 1.37, "
-          f"+150% roi on n=30 — suggestive, not proven)\n")
+          f"+150% roi on n=30 — suggestive, not proven)")
+    print(f"ledger: {recorded} new paper bets recorded "
+          f"(`ledger` shows the running record)\n")
     for i, r in enumerate(hits[:args.top], 1):
         ps = prices.get(r["condition_id"]) or []
         now_p = (f"{ps[r['outcome_index']]:.2f}"
@@ -292,6 +301,51 @@ def cmd_hunt(con, cfg, args):
         if r["event_slug"]:
             print(f"    https://polymarket.com/event/{r['event_slug']}")
         print()
+
+
+def cmd_ledger(con, cfg, args):
+    """The prospective record: every hunt hit, graded as markets resolve.
+
+    This is the survivorship-free validation of the insider signature —
+    judge the strategy on THESE numbers, not the historical cohorts.
+    """
+    graded_now = db.grade_paper_bets(con)
+    if graded_now:
+        print(f"(graded {graded_now} newly resolved bets)")
+    rows = con.execute(
+        "SELECT * FROM paper_bets ORDER BY recorded_ts").fetchall()
+    if not rows:
+        print("ledger is empty — run `hunt` after each ingest; hits are "
+              "recorded automatically")
+        return
+
+    graded = [r for r in rows if r["won"] is not None]
+    pending = [r for r in rows if r["won"] is None]
+    stake = args.stake
+    if graded:
+        wins = sum(r["won"] for r in graded)
+        exp = sum(r["rec_price"] for r in graded)
+        var = sum(r["rec_price"] * (1 - r["rec_price"]) for r in graded)
+        profit = sum(stake * (1 / r["rec_price"] - 1) if r["won"] else -stake
+                     for r in graded)
+        alpha = (wins + cfg.prior_strength) / (exp + cfg.prior_strength)
+        z = (wins - exp) / (var ** 0.5) if var > 0 else 0.0
+        print(f"graded: {len(graded)} bets | wins {wins} vs {exp:.1f} implied "
+              f"| alpha {alpha:.2f} | z {z:.2f}")
+        print(f"paper P&L at ${stake:,.0f}/bet: ${profit:,.0f} "
+              f"({profit / (stake * len(graded)):+.1%} ROI)\n")
+        for r in graded[-10:]:
+            mark = "WON " if r["won"] else "lost"
+            print(f"  {mark} {r['title']}  ->  {r['outcome']} @ {r['rec_price']:.2f}")
+        print()
+    if pending:
+        print(f"open: {len(pending)} bets awaiting resolution")
+        for r in pending[-10:]:
+            print(f"  {_fmt_ts(r['recorded_ts'])}  {r['title']}  ->  "
+                  f"{r['outcome']} @ {r['rec_price']:.2f} "
+                  f"(whale ${r['whale_cash']:,.0f})")
+    if not graded:
+        print("\nno graded bets yet — verdicts appear as markets resolve")
 
 
 def cmd_rank(con, cfg, args):
@@ -503,6 +557,9 @@ def main():
     p.add_argument("--days-to-end", type=float, default=7.0,
                    help="market must end within this many days")
 
+    p = sub.add_parser("ledger", help="prospective paper-trading record")
+    p.add_argument("--stake", type=float, default=100.0)
+
     p = sub.add_parser("rank", help="open bets ranked by total whale dollars")
     p.add_argument("--top", type=int, default=20)
     p.add_argument("--days", type=int, default=None, help="lookback window (default config)")
@@ -550,8 +607,9 @@ def main():
     con = db.connect(cfg.db_path)
     {"ingest": cmd_ingest, "backfill": cmd_backfill, "resolve": cmd_resolve,
      "stats": cmd_stats, "patterns": cmd_patterns, "hunt": cmd_hunt,
-     "rank": cmd_rank, "ev": cmd_ev, "report": cmd_report, "score": cmd_score,
-     "signals": cmd_signals, "backtest": cmd_backtest}[args.command](con, cfg, args)
+     "ledger": cmd_ledger, "rank": cmd_rank, "ev": cmd_ev,
+     "report": cmd_report, "score": cmd_score, "signals": cmd_signals,
+     "backtest": cmd_backtest}[args.command](con, cfg, args)
 
 
 if __name__ == "__main__":
