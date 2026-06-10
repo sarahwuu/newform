@@ -86,6 +86,11 @@ def test_backtest_walk_forward():
     noise_only = [t for t in trades if t["wallet"].startswith("noise")]
     res_noise = walk_forward(noise_only, CFG, stake=100.0)
     assert res_noise.roi < res.roi, "noise outperformed sharps?!"
+
+    # --all-prices widens the copy surface: must copy at least as many bets
+    # (here every synthetic bet is already in-band, so counts are equal).
+    res_all = walk_forward(trades, CFG, stake=100.0, copy_all_prices=True)
+    assert res_all.copied >= res.copied
     print(f"  backtest: copied {res.copied} bets, ROI {res.roi:.1%} vs "
           f"model EV claim {res.predicted_ev:.1%} "
           f"(noise-only control: {res_noise.roi:.1%} on {res_noise.copied} copies)")
@@ -269,6 +274,12 @@ def test_rank_orders_by_total_whale_notional():
         assert abs(bets[1].q_smart - 0.2895) < 0.01, bets[1].q_smart
         ev = bets[1].expected_value()
         assert 0.85 < ev < 1.0, f"expected ~+93% EV, got {ev}"
+
+        # Falling-knife guard: a price collapse below 60% of the whales'
+        # entry means new information — EV must go silent, not inflate.
+        bets[1].current_price = 0.05   # entry was 0.10
+        assert bets[1].expected_value() is None
+        bets[1].current_price = 0.15   # restore
 
         md = build_markdown(bets[:10], cfg, now_ts=1_900_000_500)
         html_out = build_html(bets[:10], cfg, now_ts=1_900_000_500)

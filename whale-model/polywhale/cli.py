@@ -293,8 +293,13 @@ def cmd_signals(con, cfg, args):
 def cmd_backtest(con, cfg, args):
     rows = db.resolved_buy_positions(con, cfg)
     if not rows:
-        sys.exit("no resolved longshot bets yet — run `ingest` first")
-    res = walk_forward(rows, cfg, stake=args.stake)
+        sys.exit("no resolved positions yet — run `ingest`/`backfill` then `resolve`")
+    res = walk_forward(rows, cfg, stake=args.stake,
+                       copy_all_prices=args.all_prices)
+    strategy = ("copy qualified whales at ALL prices" if args.all_prices
+                else f"copy qualified whales' longshots only "
+                     f"({cfg.min_price:.2f}-{cfg.max_price:.2f})")
+    print(f"strategy:       {strategy}")
     print(f"copied bets:    {res.copied}")
     print(f"hit rate:       {res.wins}/{res.copied}"
           f" (implied {res.expected_wins:.1f})" if res.copied else "hit rate:       n/a")
@@ -364,6 +369,8 @@ def main():
 
     p = sub.add_parser("backtest", help="walk-forward copy simulation")
     p.add_argument("--stake", type=float, default=100.0)
+    p.add_argument("--all-prices", action="store_true",
+                   help="copy qualified whales at all prices, not just longshots")
 
     args = parser.parse_args()
     cfg = Config()

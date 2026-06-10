@@ -43,12 +43,16 @@ class RankedBet:
         """EV per $1 at the CURRENT price, from the smart whales' implied edge.
 
         q_smart is each proven whale's entry price scaled by their alpha
-        (their demonstrated actual/expected win ratio), stake-weighted. If the
-        market already repriced past the whales' implied probability, this
-        goes negative — joining late means the edge is gone.
+        (their demonstrated actual/expected win ratio), stake-weighted.
+        Guard: if the market has collapsed well below the whales' entry, new
+        information likely arrived after they bet — without this check a
+        crashing price mechanically INFLATES EV, making the model love every
+        bet where the whale is losing.
         """
         if self.q_smart is None or not self.current_price:
             return None
+        if self.current_price < 0.6 * self.weighted_entry:
+            return None    # adverse move too large: whales' entry view is stale
         return self.q_smart / self.current_price - 1
 
 
