@@ -314,38 +314,50 @@ def cmd_ledger(con, cfg, args):
         print(f"(graded {graded_now} newly resolved bets)")
     rows = con.execute(
         "SELECT * FROM paper_bets ORDER BY recorded_ts").fetchall()
-    if not rows:
-        print("ledger is empty — run `hunt` after each ingest; hits are "
-              "recorded automatically")
-        return
 
-    graded = [r for r in rows if r["won"] is not None]
-    pending = [r for r in rows if r["won"] is None]
-    stake = args.stake
-    if graded:
-        wins = sum(r["won"] for r in graded)
-        exp = sum(r["rec_price"] for r in graded)
-        var = sum(r["rec_price"] * (1 - r["rec_price"]) for r in graded)
-        profit = sum(stake * (1 / r["rec_price"] - 1) if r["won"] else -stake
-                     for r in graded)
-        alpha = (wins + cfg.prior_strength) / (exp + cfg.prior_strength)
-        z = (wins - exp) / (var ** 0.5) if var > 0 else 0.0
-        print(f"graded: {len(graded)} bets | wins {wins} vs {exp:.1f} implied "
-              f"| alpha {alpha:.2f} | z {z:.2f}")
-        print(f"paper P&L at ${stake:,.0f}/bet: ${profit:,.0f} "
-              f"({profit / (stake * len(graded)):+.1%} ROI)\n")
-        for r in graded[-10:]:
-            mark = "WON " if r["won"] else "lost"
-            print(f"  {mark} {r['title']}  ->  {r['outcome']} @ {r['rec_price']:.2f}")
-        print()
-    if pending:
-        print(f"open: {len(pending)} bets awaiting resolution")
-        for r in pending[-10:]:
-            print(f"  {_fmt_ts(r['recorded_ts'])}  {r['title']}  ->  "
-                  f"{r['outcome']} @ {r['rec_price']:.2f} "
-                  f"(whale ${r['whale_cash']:,.0f})")
-    if not graded:
-        print("\nno graded bets yet — verdicts appear as markets resolve")
+    lines = []
+    if not rows:
+        lines.append("ledger is empty — run `hunt` after each ingest; hits are "
+                     "recorded automatically")
+    else:
+        graded = [r for r in rows if r["won"] is not None]
+        pending = [r for r in rows if r["won"] is None]
+        stake = args.stake
+        if graded:
+            wins = sum(r["won"] for r in graded)
+            exp = sum(r["rec_price"] for r in graded)
+            var = sum(r["rec_price"] * (1 - r["rec_price"]) for r in graded)
+            profit = sum(stake * (1 / r["rec_price"] - 1) if r["won"] else -stake
+                         for r in graded)
+            alpha = (wins + cfg.prior_strength) / (exp + cfg.prior_strength)
+            z = (wins - exp) / (var ** 0.5) if var > 0 else 0.0
+            lines.append(f"graded: {len(graded)} bets | wins {wins} vs "
+                         f"{exp:.1f} implied | alpha {alpha:.2f} | z {z:.2f}")
+            lines.append(f"paper P&L at ${stake:,.0f}/bet: ${profit:,.0f} "
+                         f"({profit / (stake * len(graded)):+.1%} ROI)")
+            lines.append("")
+            for r in graded[-10:]:
+                mark = "WON " if r["won"] else "lost"
+                lines.append(f"  {mark} {r['title']}  ->  {r['outcome']} "
+                             f"@ {r['rec_price']:.2f}")
+            lines.append("")
+        if pending:
+            lines.append(f"open: {len(pending)} bets awaiting resolution")
+            for r in pending[-10:]:
+                lines.append(f"  {_fmt_ts(r['recorded_ts'])}  {r['title']}  ->  "
+                             f"{r['outcome']} @ {r['rec_price']:.2f} "
+                             f"(whale ${r['whale_cash']:,.0f})")
+        if not graded:
+            lines.append("")
+            lines.append("no graded bets yet — verdicts appear as markets resolve")
+
+    print("\n".join(lines))
+    if args.out:
+        with open(args.out, "w") as f:
+            f.write("# Paper-trading ledger (prospective, survivorship-free)\n\n"
+                    f"_Updated {_fmt_ts(int(time.time()))} UTC_\n\n```\n"
+                    + "\n".join(lines) + "\n```\n")
+        print(f"\nwrote {args.out}")
 
 
 def cmd_rank(con, cfg, args):
@@ -559,6 +571,7 @@ def main():
 
     p = sub.add_parser("ledger", help="prospective paper-trading record")
     p.add_argument("--stake", type=float, default=100.0)
+    p.add_argument("--out", default=None, help="also write the record to a markdown file")
 
     p = sub.add_parser("rank", help="open bets ranked by total whale dollars")
     p.add_argument("--top", type=int, default=20)
