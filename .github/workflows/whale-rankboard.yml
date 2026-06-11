@@ -1,0 +1,88 @@
+name: Whale rank board
+
+on:
+  schedule:
+    - cron: "0 1,9,17 * * *"   # three times daily, 8h apart
+  workflow_dispatch: {}         # manual "Run workflow" button
+
+permissions:
+  contents: write
+  issues: write                 # hit alerts are filed as issues -> email + phone push
+
+concurrency:
+  group: whale-rankboard
+  cancel-in-progress: false
+
+jobs:
+  rankboard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r whale-model/requirements.txt
+
+      - name: Ingest latest whale trades
+        working-directory: whale-model
+        run: |
+          python -m polywhale --db data/polywhale.db ingest --pages 60
+          python -m polywhale --db data/polywhale.db backfill --max-age-days 14
+
+      - name: Hunt for signature hits (files an issue when new ones appear)
+        id: hunt
+        working-directory: whale-model
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python -m polywhale --db data/polywhale.db hunt | tee hunt_out.txt
+          NEW=$(grep -oE '[0-9]+ new paper bets' hunt_out.txt | grep -oE '[0-9]+' || echo 0)
+          echo "new=${NEW:-0}" >> "$GITHUB_OUTPUT"
+          if [ "${NEW:-0}" -gt 0 ]; then
+            {
+              echo "@sarahwuu — the whale model found ${NEW} new insider-signature hit(s):"
+              echo
+              echo '```'
+              cat hunt_out.txt
+              echo '```'
+              echo
+              echo "Before acting: check the live price has not run past the whale's entry,"
+              echo "and read the market's resolution rules on Polymarket."
+            } > issue_body.md
+            gh issue create \
+              --title "Whale signal: ${NEW} new insider-signature hit(s)" \
+              --body-file issue_body.md
+          fi
+
+      # Optional direct email to any address: set repo Variable ALERT_EMAIL
+      # and Secrets MAIL_USERNAME / MAIL_PASSWORD (Gmail app password).
+      - name: Direct email alert (optional)
+        if: vars.ALERT_EMAIL != '' && steps.hunt.outputs.new != '0'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "Whale signal: ${{ steps.hunt.outputs.new }} new insider-signature hit(s)"
+          to: ${{ vars.ALERT_EMAIL }}
+          from: Whale Model <${{ secrets.MAIL_USERNAME }}>
+          body: file://whale-model/issue_body.md
+
+      - name: Grade ledger and build board
+        working-directory: whale-model
+        run: |
+          python -m polywhale --db data/polywhale.db ledger
+          python -m polywhale --db data/polywhale.db report --top 10 \
+            --out-md RANKBOARD.md --out-html ../docs/index.html
+
+      - name: Commit updated board
+        run: |
+          git config user.name "whale-rankboard-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f whale-model/data/polywhale.db
+          git add whale-model/RANKBOARD.md docs/index.html
+          git commit -m "Whale board update" || echo "no changes to commit"
+          git push
