@@ -1,8 +1,8 @@
-name: Daily whale rank board
+name: Whale rank board
 
 on:
   schedule:
-    - cron: "0 13 * * *"   # every day 13:00 UTC
+    - cron: "0 1,9,17 * * *"   # three times daily, 8h apart
   workflow_dispatch: {}     # manual "Run workflow" button
 
 permissions:
