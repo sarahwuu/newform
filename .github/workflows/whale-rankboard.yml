@@ -25,6 +25,16 @@ jobs:
 
       - run: pip install -r whale-model/requirements.txt
 
+      # The database is far too large for git (GitHub caps files at 100MB),
+      # so it lives in the Actions cache and rolls forward run to run.
+      - name: Restore whale database
+        uses: actions/cache/restore@v4
+        with:
+          path: whale-model/data/polywhale.db
+          key: whale-db-${{ github.run_id }}
+          restore-keys: |
+            whale-db-
+
       - name: Ingest latest whale trades
         working-directory: whale-model
         run: |
@@ -74,15 +84,22 @@ jobs:
       - name: Grade ledger and build board
         working-directory: whale-model
         run: |
-          python -m polywhale --db data/polywhale.db ledger
+          python -m polywhale --db data/polywhale.db ledger --out LEDGER.md
           python -m polywhale --db data/polywhale.db report --top 10 \
             --out-md RANKBOARD.md --out-html ../docs/index.html
 
-      - name: Commit updated board
+      - name: Save whale database
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: whale-model/data/polywhale.db
+          key: whale-db-${{ github.run_id }}
+
+      - name: Commit updated board and ledger
         run: |
           git config user.name "whale-rankboard-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f whale-model/data/polywhale.db
-          git add whale-model/RANKBOARD.md docs/index.html
+          git add whale-model/RANKBOARD.md whale-model/LEDGER.md docs/index.html
           git commit -m "Whale board update" || echo "no changes to commit"
+          git pull --rebase origin "${GITHUB_REF_NAME}" || true
           git push
