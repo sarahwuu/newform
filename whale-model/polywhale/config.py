@@ -37,6 +37,8 @@ class Config:
     # Insider-pattern heuristics (display flags, not filters)
     fresh_wallet_max_fills: int = 3   # wallet with <= this many fills in DB = "fresh"
     burst_hours: int = 24             # window for "money arriving suddenly" share
+    burner_max_markets: int = 3       # hunt: a concentrated insider burner touches
+                                      # <= this many markets; sprayers/hedgers exceed it
 
     # Signal generation
     signal_window_days: int = 14  # only treat recent whale entries as live signals

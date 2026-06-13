@@ -258,10 +258,15 @@ def cmd_hunt(con, cfg, args):
     hits = [r for r in rows
             if r["ts"] - r["first_ts"] <= args.max_wallet_age * day
             and r["end_ts"] is not None
-            and 0 <= r["end_ts"] - now <= args.days_to_end * day]
+            and 0 <= r["end_ts"] - now <= args.days_to_end * day
+            # Concentration: keep only burners that exist to make one bet.
+            # A wallet sprayed across many markets is a volume/hedge bettor,
+            # not insider conviction (see Aching-Frustration-Victim, 2026-06).
+            and db.wallet_distinct_markets(con, r["wallet"]) <= args.max_markets]
     hits.sort(key=lambda r: -r["cash"])
     if not hits:
         print(f"no live signature hits (fresh wallet <= {args.max_wallet_age}d, "
+              f"<= {args.max_markets} markets, "
               f"position >= ${cfg.min_position_cash:,.0f} at "
               f"{cfg.min_price:.2f}-{cfg.max_price:.2f}, "
               f"market ends <= {args.days_to_end}d) — re-run after the next ingest")
@@ -568,6 +573,8 @@ def main():
                    help="wallet age in days at entry to count as fresh")
     p.add_argument("--days-to-end", type=float, default=7.0,
                    help="market must end within this many days")
+    p.add_argument("--max-markets", type=int, default=Config().burner_max_markets,
+                   help="max distinct markets the wallet may have bet on (concentration)")
 
     p = sub.add_parser("ledger", help="prospective paper-trading record")
     p.add_argument("--stake", type=float, default=100.0)

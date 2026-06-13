@@ -295,6 +295,21 @@ def wallet_fill_count(con, wallet):
     ).fetchone()["c"]
 
 
+def wallet_distinct_markets(con, wallet):
+    """Distinct markets this wallet has placed BUY positions on.
+
+    A concentrated burner — the insider profile — touches very few markets:
+    the wallet exists to make one bet. A volume or hedge bettor (e.g. someone
+    spraying money across every World Cup team) touches many, and should not
+    be mistaken for insider conviction even when one of its bets is a fresh,
+    big longshot near close.
+    """
+    return con.execute(
+        "SELECT COUNT(DISTINCT condition_id) c FROM trades "
+        "WHERE wallet = ? AND side = 'BUY'", (wallet,)
+    ).fetchone()["c"]
+
+
 def wallet_other_bets_in_event(con, wallet, event_slug, condition_id,
                                outcome_index, since_ts):
     """Fills by the same wallet on OTHER outcomes of the same event.

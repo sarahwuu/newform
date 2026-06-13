@@ -293,9 +293,46 @@ def test_rank_orders_by_total_whale_notional():
               f"md+html report ok")
 
 
+def test_hunt_concentration_filter():
+    """A fresh burner on one market alerts; a fresh wallet sprayed across many
+    markets (the volume/hedge-bettor profile) is suppressed."""
+    import subprocess
+    import time as _t
+    from datetime import datetime, timezone
+
+    now = int(_t.time())
+
+    def trade(tx, w, cond, price, cash):
+        return {"transactionHash": tx, "proxyWallet": w, "conditionId": cond,
+                "outcomeIndex": 1, "outcome": "Yes", "side": "BUY", "price": price,
+                "size": cash / price, "timestamp": now - 3600, "title": f"M {cond}",
+                "eventSlug": f"e-{cond}", "pseudonym": w}
+
+    with tempfile.TemporaryDirectory() as tmp:
+        dbp = os.path.join(tmp, "t.db")
+        con = db.connect(dbp)
+        end = datetime.fromtimestamp(now + 2 * 86400, tz=timezone.utc
+                                     ).strftime("%Y-%m-%dT%H:%M:%SZ")
+        rows = [trade("b1", "burner", "0xsig", 0.10, 25_000),
+                trade("s0", "sprayer", "0xsig2", 0.10, 25_000)]
+        for i, c in enumerate(["0xa", "0xb", "0xc", "0xd"]):
+            rows.append(trade(f"sp{i}", "sprayer", c, 0.15, 15_000))
+        db.upsert_trades(con, rows)
+        for c in ("0xsig", "0xsig2"):
+            db.upsert_market(con, {"conditionId": c, "closed": False,
+                                   "outcomePrices": '["0.9","0.1"]', "endDate": end})
+        con.close()
+        out = subprocess.run([sys.executable, "-m", "polywhale", "--db", dbp, "hunt"],
+                             capture_output=True, text=True, cwd=os.path.join(
+                                 os.path.dirname(__file__), ".."))
+        assert "burner" in out.stdout, out.stdout
+        assert "sprayer" not in out.stdout, out.stdout
+    print("  hunt: concentrated burner alerts, sprayer suppressed")
+
+
 if __name__ == "__main__":
     for fn in (test_scoring_separates_skill, test_backtest_walk_forward,
-               test_pagination_cap_stops_cleanly,
+               test_pagination_cap_stops_cleanly, test_hunt_concentration_filter,
                test_db_roundtrip_and_signals, test_rank_orders_by_total_whale_notional):
         print(f"{fn.__name__} ...")
         fn()
