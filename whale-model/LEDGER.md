@@ -1,6 +1,6 @@
 # Paper-trading ledger (prospective, survivorship-free)
 
-_Updated 2026-06-13 18:14 UTC_
+_Updated 2026-06-14 05:53 UTC_
 
 ```
 open: 1 bets awaiting resolution
