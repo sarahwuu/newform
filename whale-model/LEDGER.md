@@ -1,10 +1,11 @@
 # Paper-trading ledger (prospective, survivorship-free)
 
-_Updated 2026-06-14 05:53 UTC_
+_Updated 2026-06-14 11:35 UTC_
 
 ```
-open: 1 bets awaiting resolution
-  2026-06-13 05:27  Will Australia win on 2026-06-14?  ->  Yes @ 0.18 (whale $18,763)
+graded: 1 bets | wins 1 vs 0.2 implied | alpha 1.26 | z 2.10
+paper P&L at $100/bet: $441 (+440.5% ROI)
 
-no graded bets yet — verdicts appear as markets resolve
+  WON  Will Australia win on 2026-06-14?  ->  Yes @ 0.18
+
 ```
