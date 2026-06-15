@@ -1,6 +1,6 @@
 # Paper-trading ledger (prospective, survivorship-free)
 
-_Updated 2026-06-14 18:17 UTC_
+_Updated 2026-06-15 06:31 UTC_
 
 ```
 graded: 1 bets | wins 1 vs 0.2 implied | alpha 1.26 | z 2.10
