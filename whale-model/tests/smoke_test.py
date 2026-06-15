@@ -330,9 +330,27 @@ def test_hunt_concentration_filter():
     print("  hunt: concentrated burner alerts, sprayer suppressed")
 
 
+def test_market_classifier():
+    from polywhale.classify import classify_market
+    sports = [("Will Spain win on 2026-06-15?", "fifwc-esp-cvi-2026-06-15"),
+              ("Will the Spurs win the 2026 NBA Finals?", "2026-nba-champion"),
+              ("Will Australia win on 2026-06-14?", "fifwc-aus-tur-2026-06-14")]
+    other = [("US x Iran nuclear deal by June 30?", "us-iran-nuclear-deal"),
+             ("Will Renan Santos win the election?", "brazil-presidential-election"),
+             ("Will the US confirm aliens exist?", "us-confirm-aliens-exist")]
+    for t, s in sports:
+        assert classify_market(t, s) == "sports", (t, s)
+    for t, s in other:
+        assert classify_market(t, s) == "other", (t, s)
+    # The bug that prompted this: "ucl" must not match inside "nuclear".
+    assert classify_market("nuclear deal", "us-iran-nuclear-deal") == "other"
+    print("  classify: sports/news split correct, no substring false positives")
+
+
 if __name__ == "__main__":
     for fn in (test_scoring_separates_skill, test_backtest_walk_forward,
                test_pagination_cap_stops_cleanly, test_hunt_concentration_filter,
+               test_market_classifier,
                test_db_roundtrip_and_signals, test_rank_orders_by_total_whale_notional):
         print(f"{fn.__name__} ...")
         fn()

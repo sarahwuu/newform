@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 from . import db
 from .api import PolymarketClient
 from .backtest import walk_forward
+from .classify import classify_market
 from .config import Config
 from .model import score_wallets
 from .rank import attach_live_prices, rank_bets
@@ -30,13 +31,14 @@ def _fmt_ts(ts):
     return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d %H:%M")
 
 
-def _refresh_markets(con, client):
-    """Fetch resolution status for every market we lack, chunk by chunk.
+def _refresh_markets(con, client, since_ts=None):
+    """Fetch resolution status for markets we lack, chunk by chunk.
 
     One bad chunk must never sink the rest: failures are skipped and counted,
-    and everything fetched so far stays saved.
+    and everything fetched so far stays saved. With since_ts, only markets
+    traded recently are refreshed — the fast watch loop's quick path.
     """
-    missing = db.condition_ids_missing_or_unresolved(con)
+    missing = db.condition_ids_missing_or_unresolved(con, since_ts=since_ts)
     if not missing:
         print("markets: nothing to refresh")
         return
@@ -70,7 +72,10 @@ def cmd_ingest(con, cfg, args):
         print(f"(trade fetch interrupted, keeping what we got: {exc})")
         added = "?"
     print(f"trades: +{added} new rows")
-    _refresh_markets(con, client)
+    # --quick (fast watch loop): only resolve recently-traded markets so the
+    # run stays short; the daily full run sweeps up any stragglers.
+    since = (int(time.time()) - cfg.signal_window_days * 86400) if args.quick else None
+    _refresh_markets(con, client, since_ts=since)
     total = con.execute("SELECT COUNT(*) c FROM trades").fetchone()["c"]
     print(f"db now holds {total} whale trades")
 
@@ -298,7 +303,11 @@ def cmd_hunt(con, cfg, args):
                  if 0 <= r["outcome_index"] < len(ps) else "n/a")
         wallet_age = (r["ts"] - r["first_ts"]) / day
         ends_in = (r["end_ts"] - now) / day
-        print(f"{i:>2}. {r['title']}  ->  {r['outcome']}")
+        cat = classify_market(r["title"], r["event_slug"])
+        tag = ("[SPORTS — watch only: likely fixing/team-news, often voided, "
+               "resolves too fast to act]" if cat == "sports"
+               else "[NEWS — the actionable category: information, not fixing]")
+        print(f"{i:>2}. {r['title']}  ->  {r['outcome']}   {tag}")
         print(f"    {r['pseudonym'] or r['wallet']}: ${r['cash']:,.0f} @ "
               f"{r['price']:.2f} (now {now_p})"
               f" | wallet {wallet_age:.1f}d old at entry"
@@ -328,18 +337,31 @@ def cmd_ledger(con, cfg, args):
         graded = [r for r in rows if r["won"] is not None]
         pending = [r for r in rows if r["won"] is None]
         stake = args.stake
-        if graded:
-            wins = sum(r["won"] for r in graded)
-            exp = sum(r["rec_price"] for r in graded)
-            var = sum(r["rec_price"] * (1 - r["rec_price"]) for r in graded)
+
+        def stat_line(label, subset):
+            if not subset:
+                return f"  {label:<8} (none yet)"
+            wins = sum(r["won"] for r in subset)
+            exp = sum(r["rec_price"] for r in subset)
+            var = sum(r["rec_price"] * (1 - r["rec_price"]) for r in subset)
             profit = sum(stake * (1 / r["rec_price"] - 1) if r["won"] else -stake
-                         for r in graded)
+                         for r in subset)
             alpha = (wins + cfg.prior_strength) / (exp + cfg.prior_strength)
             z = (wins - exp) / (var ** 0.5) if var > 0 else 0.0
-            lines.append(f"graded: {len(graded)} bets | wins {wins} vs "
-                         f"{exp:.1f} implied | alpha {alpha:.2f} | z {z:.2f}")
-            lines.append(f"paper P&L at ${stake:,.0f}/bet: ${profit:,.0f} "
-                         f"({profit / (stake * len(graded)):+.1%} ROI)")
+            return (f"  {label:<8} {len(subset):>3} bets | wins {wins} vs "
+                    f"{exp:.1f} implied | alpha {alpha:.2f} | z {z:.2f} | "
+                    f"ROI {profit / (stake * len(subset)):+.0%}")
+
+        if graded:
+            sports = [r for r in graded
+                      if classify_market(r["title"], r["event_slug"]) == "sports"]
+            other = [r for r in graded if r not in sports]
+            lines.append(f"graded record at ${stake:,.0f}/bet "
+                         f"(NEWS is the category that matters; sports is "
+                         f"watch-only/likely-fixing):")
+            lines.append(stat_line("ALL", graded))
+            lines.append(stat_line("NEWS", other))
+            lines.append(stat_line("sports", sports))
             lines.append("")
             for r in graded[-10:]:
                 mark = "WON " if r["won"] else "lost"
@@ -549,6 +571,8 @@ def main():
 
     p = sub.add_parser("ingest", help="pull recent large trades + resolutions")
     p.add_argument("--pages", type=int, default=40)
+    p.add_argument("--quick", action="store_true",
+                   help="fast watch loop: only resolve recently-traded markets")
 
     p = sub.add_parser("backfill", help="pull trade history for known wallets")
     p.add_argument("--pages", type=int, default=4,

@@ -157,13 +157,27 @@ def upsert_market(con, m):
     con.commit()
 
 
-def condition_ids_missing_or_unresolved(con):
-    rows = con.execute(
-        """SELECT DISTINCT t.condition_id FROM trades t
-           LEFT JOIN markets m ON m.condition_id = t.condition_id
-           WHERE t.condition_id != ''
-             AND (m.condition_id IS NULL OR m.resolved = 0)"""
-    ).fetchall()
+def condition_ids_missing_or_unresolved(con, since_ts=None):
+    """Condition ids we still need resolution for.
+
+    With since_ts set, restrict to markets traded recently — the fast watch
+    loop only needs to resolve markets in play, not re-check all history.
+    """
+    if since_ts is None:
+        rows = con.execute(
+            """SELECT DISTINCT t.condition_id FROM trades t
+               LEFT JOIN markets m ON m.condition_id = t.condition_id
+               WHERE t.condition_id != ''
+                 AND (m.condition_id IS NULL OR m.resolved = 0)"""
+        ).fetchall()
+    else:
+        rows = con.execute(
+            """SELECT DISTINCT t.condition_id FROM trades t
+               LEFT JOIN markets m ON m.condition_id = t.condition_id
+               WHERE t.condition_id != '' AND t.ts >= ?
+                 AND (m.condition_id IS NULL OR m.resolved = 0)""",
+            (since_ts,),
+        ).fetchall()
     return [r["condition_id"] for r in rows]
 
 

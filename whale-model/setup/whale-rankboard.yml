@@ -1,32 +1,28 @@
-name: Whale rank board
+name: Whale watch
 
 on:
   schedule:
-    - cron: "0 1,9,17 * * *"   # three times daily, 8h apart
-  workflow_dispatch: {}         # manual "Run workflow" button
+    - cron: "*/15 * * * *"   # fast loop: hunt for signals every ~15 min
+  workflow_dispatch: {}
 
 permissions:
   contents: write
-  issues: write                 # hit alerts are filed as issues -> email + phone push
+  issues: write
 
 concurrency:
-  group: whale-rankboard
+  group: whale-db          # repo-wide: never let two runs touch the cache at once
   cancel-in-progress: false
 
 jobs:
-  rankboard:
+  watch:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
       - run: pip install -r whale-model/requirements.txt
 
-      # The database is far too large for git (GitHub caps files at 100MB),
-      # so it lives in the Actions cache and rolls forward run to run.
       - name: Restore whale database
         uses: actions/cache/restore@v4
         with:
@@ -35,13 +31,25 @@ jobs:
           restore-keys: |
             whale-db-
 
-      - name: Ingest latest whale trades
-        working-directory: whale-model
+      # Once a day (09:00 UTC) do the heavy maintenance; every other run is the
+      # light, fast hunt so signals surface within ~15 minutes.
+      - name: Decide run type
+        id: mode
         run: |
-          python -m polywhale --db data/polywhale.db ingest --pages 60
-          python -m polywhale --db data/polywhale.db backfill --max-age-days 14
+          H=$(date -u +%H)
+          if [ "$H" = "09" ]; then echo "heavy=true" >> "$GITHUB_OUTPUT";
+          else echo "heavy=false" >> "$GITHUB_OUTPUT"; fi
 
-      - name: Hunt for signature hits (files an issue when new ones appear)
+      - name: Quick ingest (every run)
+        working-directory: whale-model
+        run: python -m polywhale --db data/polywhale.db ingest --pages 15 --quick
+
+      - name: Daily backfill (heavy run only)
+        if: steps.mode.outputs.heavy == 'true'
+        working-directory: whale-model
+        run: python -m polywhale --db data/polywhale.db backfill --max-age-days 14
+
+      - name: Hunt for signature hits (files an issue on new ones)
         id: hunt
         working-directory: whale-model
         env:
@@ -58,6 +66,8 @@ jobs:
               cat hunt_out.txt
               echo '```'
               echo
+              echo "Tag meaning: [NEWS] = the actionable category; [SPORTS] = watch only"
+              echo "(likely fixing/team-news, often voided, resolves too fast to act)."
               echo "Before acting: check the live price has not run past the whale's entry,"
               echo "and read the market's resolution rules on Polymarket."
             } > issue_body.md
@@ -66,8 +76,6 @@ jobs:
               --body-file issue_body.md
           fi
 
-      # Optional direct email to any address: set repo Variable ALERT_EMAIL
-      # and Secrets MAIL_USERNAME / MAIL_PASSWORD (Gmail app password).
       - name: Direct email alert (optional)
         if: vars.ALERT_EMAIL != '' && steps.hunt.outputs.new != '0'
         uses: dawidd6/action-send-mail@v3
@@ -81,7 +89,8 @@ jobs:
           from: Whale Model <${{ secrets.MAIL_USERNAME }}>
           body: file://whale-model/issue_body.md
 
-      - name: Grade ledger and build board
+      - name: Grade ledger and rebuild board (heavy run only)
+        if: steps.mode.outputs.heavy == 'true'
         working-directory: whale-model
         run: |
           python -m polywhale --db data/polywhale.db ledger --out LEDGER.md
@@ -95,7 +104,8 @@ jobs:
           path: whale-model/data/polywhale.db
           key: whale-db-${{ github.run_id }}
 
-      - name: Commit updated board and ledger
+      - name: Commit board and ledger (heavy run only)
+        if: steps.mode.outputs.heavy == 'true'
         run: |
           git config user.name "whale-rankboard-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
