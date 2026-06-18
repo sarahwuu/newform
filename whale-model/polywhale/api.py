@@ -105,3 +105,51 @@ class PolymarketClient:
         if closed is not None:
             params.append(("closed", "true" if closed else "false"))
         return self._get(f"{GAMMA_API}/markets", params) or []
+
+    def iter_markets(self, closed=True, page_size=500, max_pages=200):
+        """Page the full Gamma market catalogue (independent of our wallets).
+
+        Used to discover markets in a category directly from Polymarket, so
+        we can find the specialists who trade them — including the small/mid
+        bettors the large-trade tape never surfaces.
+        """
+        for page in range(max_pages):
+            batch = self._get(f"{GAMMA_API}/markets", {
+                "closed": "true" if closed else "false",
+                "limit": page_size,
+                "offset": page * page_size,
+            })
+            if not batch:
+                return
+            yield from batch
+            if len(batch) < page_size:
+                return
+
+    def iter_market_trades(self, condition_id, min_cash=0, page_size=500,
+                           max_pages=40, taker_only=True):
+        """Yield trades for one market (any size, newest first).
+
+        This is how we pull a market's full trader roster — the moderate-size
+        bettors our global $2k+ tape filters out.
+        """
+        for page in range(max_pages):
+            params = {
+                "market": condition_id,
+                "limit": page_size,
+                "offset": page * page_size,
+                "takerOnly": str(bool(taker_only)).lower(),
+            }
+            if min_cash and min_cash > 0:
+                params["filterType"] = "CASH"
+                params["filterAmount"] = int(min_cash)
+            try:
+                batch = self._get(f"{DATA_API}/trades", params)
+            except ClientError:
+                if page == 0:
+                    raise
+                return
+            if not batch:
+                return
+            yield from batch
+            if len(batch) < page_size:
+                return

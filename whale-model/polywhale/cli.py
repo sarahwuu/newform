@@ -530,6 +530,54 @@ def cmd_signals(con, cfg, args):
             print(f"  {url}")
 
 
+def cmd_seed(con, cfg, args):
+    """Discover a category's markets directly from Polymarket and pull their
+    full trader rosters — breaking the longshot sampling bias so `specialists`
+    can judge real category specialists (e.g. weather forecasters), not just
+    the big-longshot whales who happened to dabble.
+
+    After this: run `backfill` (deepen those wallets) -> `resolve` -> `specialists`.
+    """
+    client = PolymarketClient()
+    target = args.category
+    print(f"scanning Polymarket for {target} markets "
+          f"(up to {args.market_pages} pages)...")
+    conds = []
+    scanned = 0
+    for m in client.iter_markets(closed=True, max_pages=args.market_pages):
+        scanned += 1
+        if category(m.get("question"), m.get("slug")) == target:
+            db.upsert_market(con, m)
+            cid = m.get("conditionId")
+            if cid:
+                conds.append(cid)
+        if scanned % 5000 == 0:
+            print(f"  scanned {scanned} markets, {len(conds)} {target} so far...")
+    con.commit()
+    print(f"found {len(conds)} resolved {target} markets out of {scanned} scanned")
+    if not conds:
+        print("none found — try raising --market-pages, or the category keywords "
+              "may need widening")
+        return
+
+    added = 0
+    for i, cid in enumerate(conds, 1):
+        try:
+            added += db.upsert_trades(
+                con, client.iter_market_trades(cid, min_cash=args.min_cash))
+        except Exception as exc:
+            con.commit()
+            print(f"  {cid[:14]}…: trade fetch failed ({exc})")
+        if i % 50 == 0:
+            print(f"  {i}/{len(conds)} markets, +{added} trades, "
+                  f"{con.execute('SELECT COUNT(DISTINCT wallet) c FROM trades').fetchone()['c']} total wallets")
+        time.sleep(args.pause)
+    wallets = con.execute("SELECT COUNT(DISTINCT wallet) c FROM trades").fetchone()["c"]
+    print(f"\nseeded +{added} {target}-market trades; DB now spans {wallets} wallets")
+    print("now run:  python3 -m polywhale backfill  &&  "
+          "python3 -m polywhale resolve  &&  python3 -m polywhale specialists")
+
+
 def cmd_specialists(con, cfg, args):
     """Per-category skill test: are there wallets that beat the odds in a
     specific category (esp. weather), and does tailing them pay out-of-sample?
@@ -698,6 +746,15 @@ def main():
     p.add_argument("--all-prices", action="store_true",
                    help="copy qualified whales at all prices, not just longshots")
 
+    p = sub.add_parser("seed", help="pull a category's markets + traders directly")
+    p.add_argument("--category", default="weather",
+                   help="category to seed (weather, politics, crypto, economy, ...)")
+    p.add_argument("--market-pages", type=int, default=80,
+                   help="Gamma catalogue pages to scan (500 markets each)")
+    p.add_argument("--min-cash", type=float, default=100.0,
+                   help="trade floor when pulling a market's roster (low, to catch specialists)")
+    p.add_argument("--pause", type=float, default=0.15)
+
     p = sub.add_parser("specialists", help="per-category skill + tailing test")
     p.add_argument("--min-cash", type=float, default=Config().scoring_min_cash,
                    help="position floor for the analysis")
@@ -720,7 +777,7 @@ def main():
      "stats": cmd_stats, "patterns": cmd_patterns, "hunt": cmd_hunt,
      "ledger": cmd_ledger, "rank": cmd_rank, "ev": cmd_ev,
      "report": cmd_report, "score": cmd_score, "signals": cmd_signals,
-     "backtest": cmd_backtest,
+     "backtest": cmd_backtest, "seed": cmd_seed,
      "specialists": cmd_specialists}[args.command](con, cfg, args)
 
 
