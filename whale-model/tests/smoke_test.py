@@ -347,10 +347,45 @@ def test_market_classifier():
     print("  classify: sports/news split correct, no substring false positives")
 
 
+def test_specialist_category_isolation():
+    """Walk-forward per-category tailing should show profit in a category where
+    wallets have real edge, and ~none in a category where they don't."""
+    from polywhale.backtest import walk_forward_specialists
+
+    rng2 = random.Random(7)
+    positions = []
+    ts = 1_700_000_000
+    for w in range(4):                       # weather specialists: true 1.6x edge
+        for i in range(40):
+            price = rng2.uniform(0.15, 0.45)
+            won = rng2.random() < min(1.0, price * 1.6)
+            ts += 3600
+            positions.append({"wallet": f"wx{w}", "pseudonym": f"wx{w}",
+                              "price": price, "cash": 5000, "ts": ts,
+                              "end_ts": ts + 7200, "won": won, "category": "weather"})
+    for w in range(4):                       # sports: no edge (fair coin)
+        for i in range(40):
+            price = rng2.uniform(0.15, 0.45)
+            won = rng2.random() < price
+            ts += 3600
+            positions.append({"wallet": f"sx{w}", "pseudonym": f"sx{w}",
+                              "price": price, "cash": 5000, "ts": ts,
+                              "end_ts": ts + 7200, "won": won, "category": "sports"})
+    positions.sort(key=lambda x: x["ts"])
+    res = walk_forward_specialists(positions, CFG, stake=100.0)
+    wx = res.get("weather")
+    assert wx and wx.copied > 0 and wx.roi > 0.2, \
+        f"weather specialists should tail profitably: {wx and wx.roi}"
+    sx_roi = res["sports"].roi if "sports" in res else 0.0
+    assert sx_roi < wx.roi, "no-edge sports should not beat weather"
+    print(f"  specialists: weather ROI {wx.roi:+.0%} on {wx.copied} tailed vs "
+          f"sports {sx_roi:+.0%} — category isolation works")
+
+
 if __name__ == "__main__":
     for fn in (test_scoring_separates_skill, test_backtest_walk_forward,
                test_pagination_cap_stops_cleanly, test_hunt_concentration_filter,
-               test_market_classifier,
+               test_market_classifier, test_specialist_category_isolation,
                test_db_roundtrip_and_signals, test_rank_orders_by_total_whale_notional):
         print(f"{fn.__name__} ...")
         fn()

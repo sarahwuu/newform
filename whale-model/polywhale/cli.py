@@ -18,8 +18,8 @@ from datetime import datetime, timezone
 
 from . import db
 from .api import PolymarketClient
-from .backtest import walk_forward
-from .classify import classify_market
+from .backtest import walk_forward, walk_forward_specialists
+from .classify import category, classify_market
 from .config import Config
 from .model import score_wallets
 from .rank import attach_live_prices, rank_bets
@@ -530,6 +530,67 @@ def cmd_signals(con, cfg, args):
             print(f"  {url}")
 
 
+def cmd_specialists(con, cfg, args):
+    """Per-category skill test: are there wallets that beat the odds in a
+    specific category (esp. weather), and does tailing them pay out-of-sample?
+
+    Scoring uses alpha/z (beat-the-odds), never raw win rate, and the tailing
+    test is walk-forward (decisions never see the future).
+    """
+    rows = db.resolved_positions_with_meta(con, args.min_cash)
+    if not rows:
+        sys.exit("no resolved positions — run ingest/backfill then resolve first")
+
+    tagged = []
+    for r in rows:
+        d = dict(r)
+        d["category"] = category(r["title"], r["event_slug"])
+        tagged.append(d)
+
+    by_cat = {}
+    for d in tagged:
+        by_cat.setdefault(d["category"], []).append(d)
+
+    res = walk_forward_specialists(sorted(tagged, key=lambda x: x["ts"]),
+                                   cfg, stake=args.stake)
+
+    lines = [f"per-category specialist test (position floor ${args.min_cash:,.0f}, "
+             f"specialist bar: n>={cfg.min_resolved}, z>={cfg.min_z}, "
+             f"alpha>={cfg.min_alpha}; tailing test is walk-forward)",
+             "",
+             f"{'category':<10} {'bets':>6} {'wallets':>7} {'specialists':>11} | "
+             f"{'tailed':>6} {'wins/impl':>11} {'ROI':>8} {'EVclaim':>8}"]
+    order = ["weather", "politics", "economy", "crypto", "other", "sports"]
+    cats = [c for c in order if c in by_cat] + [c for c in by_cat if c not in order]
+    for cat in cats:
+        positions = by_cat[cat]
+        scores = score_wallets(positions, cfg.prior_strength)
+        specialists = sum(1 for s in scores if s.qualifies(cfg))
+        wallets = len({p["wallet"] for p in positions})
+        r = res.get(cat)
+        if r and r.copied:
+            tail = (f"{r.copied:>6} {r.wins:>4}/{r.expected_wins:>5.1f} "
+                    f"{r.roi:>+7.0%} {r.predicted_ev:>+7.0%}")
+        else:
+            tail = f"{'0':>6} {'—':>11} {'—':>8} {'—':>8}"
+        lines.append(f"{cat:<10} {len(positions):>6} {wallets:>7} "
+                     f"{specialists:>11} | {tail}")
+
+    lines += ["",
+              "Read: a category worth tailing shows specialists > 0 AND a "
+              "positive walk-forward ROI with EVclaim close to ROI. Weather is "
+              "the prior favorite (skill persists); sports is the control "
+              "(expect no real edge). Small bet counts = not yet conclusive."]
+    out = "\n".join(lines)
+    print(out)
+    if args.out:
+        with open(args.out, "w") as f:
+            f.write("# Per-category specialist test\n\n"
+                    f"_Updated {_fmt_ts(int(time.time()))} UTC_\n\n```\n"
+                    + out + "\n```\n")
+        print(f"\nwrote {args.out}")
+
+
 def cmd_backtest(con, cfg, args):
     rows = db.resolved_buy_positions(con, cfg)
     if not rows:
@@ -637,6 +698,12 @@ def main():
     p.add_argument("--all-prices", action="store_true",
                    help="copy qualified whales at all prices, not just longshots")
 
+    p = sub.add_parser("specialists", help="per-category skill + tailing test")
+    p.add_argument("--min-cash", type=float, default=Config().scoring_min_cash,
+                   help="position floor for the analysis")
+    p.add_argument("--stake", type=float, default=100.0)
+    p.add_argument("--out", default=None, help="also write results to a markdown file")
+
     args = parser.parse_args()
     cfg = Config()
     if args.db:
@@ -653,7 +720,8 @@ def main():
      "stats": cmd_stats, "patterns": cmd_patterns, "hunt": cmd_hunt,
      "ledger": cmd_ledger, "rank": cmd_rank, "ev": cmd_ev,
      "report": cmd_report, "score": cmd_score, "signals": cmd_signals,
-     "backtest": cmd_backtest}[args.command](con, cfg, args)
+     "backtest": cmd_backtest,
+     "specialists": cmd_specialists}[args.command](con, cfg, args)
 
 
 if __name__ == "__main__":

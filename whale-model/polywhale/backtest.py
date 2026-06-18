@@ -107,3 +107,54 @@ def walk_forward(resolved_positions, cfg, stake=100.0, copy_all_prices=False):
         w.pending.append((max(end_ts, t["ts"] + 1), price, won))
 
     return result
+
+
+@dataclass
+class CategoryResult:
+    copied: int = 0
+    wins: int = 0
+    staked: float = 0.0
+    profit: float = 0.0
+    expected_wins: float = 0.0
+    predicted_ev_sum: float = 0.0
+
+    @property
+    def roi(self):
+        return self.profit / self.staked if self.staked else 0.0
+
+    @property
+    def predicted_ev(self):
+        return self.predicted_ev_sum / self.copied if self.copied else 0.0
+
+
+def walk_forward_specialists(positions, cfg, stake=100.0):
+    """Per-category walk-forward tailing test.
+
+    `positions` are resolved BUY positions sorted by ts, each a mapping with
+    wallet, price, cash, ts, end_ts, won, category. A wallet is judged a
+    specialist within a category using ONLY that category's bets that had
+    resolved before the bet in question — so the decision never sees the
+    future. Returns {category: CategoryResult}. The question it answers: if
+    you'd tailed proven per-category specialists, would it have paid?
+    """
+    runners = {}                       # (category, wallet) -> _Running
+    results = {}                       # category -> CategoryResult
+    for t in positions:
+        cat = t["category"]
+        key = (cat, t["wallet"])
+        w = runners.get(key)
+        if w is None:
+            w = runners[key] = _Running()
+        w.settle_until(t["ts"])
+        price, won = float(t["price"]), bool(t["won"])
+        if w.qualifies(cfg):
+            res = results.setdefault(cat, CategoryResult())
+            res.copied += 1
+            res.wins += won
+            res.staked += stake
+            res.profit += stake * (1 / price - 1) if won else -stake
+            res.expected_wins += price
+            res.predicted_ev_sum += w.alpha(cfg) - 1
+        end_ts = t["end_ts"] or t["ts"]
+        w.pending.append((max(end_ts, t["ts"] + 1), price, won))
+    return results

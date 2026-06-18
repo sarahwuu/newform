@@ -212,6 +212,29 @@ def resolved_buy_positions(con, cfg):
     ).fetchall()
 
 
+def resolved_positions_with_meta(con, min_cash):
+    """All resolved BUY positions with title + event_slug, for per-category
+    specialist analysis. Aggregated per (wallet, market, outcome); any price."""
+    return con.execute(
+        """SELECT t.wallet, MAX(t.pseudonym) AS pseudonym, t.condition_id,
+                  COUNT(*) AS fills,
+                  SUM(t.cash) AS cash,
+                  SUM(t.cash) / SUM(t.size) AS price,
+                  MIN(t.ts) AS ts,
+                  MAX(t.title) AS title,
+                  MAX(t.event_slug) AS event_slug,
+                  MAX(m.end_ts) AS end_ts,
+                  (t.outcome_index = m.winning_index) AS won
+           FROM trades t
+           JOIN markets m ON m.condition_id = t.condition_id
+           WHERE t.side = 'BUY' AND m.resolved = 1
+           GROUP BY t.wallet, t.condition_id, t.outcome_index
+           HAVING SUM(t.cash) >= ?
+           ORDER BY MIN(t.ts)""",
+        (min_cash,),
+    ).fetchall()
+
+
 def open_longshot_positions(con, cfg, since_ts, burst_cutoff):
     """Whale longshot POSITIONS on markets that have not resolved yet.
 
