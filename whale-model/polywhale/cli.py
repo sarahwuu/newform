@@ -749,8 +749,8 @@ def main():
     p = sub.add_parser("seed", help="pull a category's markets + traders directly")
     p.add_argument("--category", default="weather",
                    help="category to seed (weather, politics, crypto, economy, ...)")
-    p.add_argument("--market-pages", type=int, default=80,
-                   help="Gamma catalogue pages to scan (500 markets each)")
+    p.add_argument("--market-pages", type=int, default=500,
+                   help="Gamma catalogue pages to scan (100 markets each)")
     p.add_argument("--min-cash", type=float, default=100.0,
                    help="trade floor when pulling a market's roster (low, to catch specialists)")
     p.add_argument("--pause", type=float, default=0.15)

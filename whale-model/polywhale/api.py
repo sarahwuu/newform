@@ -106,24 +106,26 @@ class PolymarketClient:
             params.append(("closed", "true" if closed else "false"))
         return self._get(f"{GAMMA_API}/markets", params) or []
 
-    def iter_markets(self, closed=True, page_size=500, max_pages=200):
+    def iter_markets(self, closed=True, page_size=100, max_pages=600):
         """Page the full Gamma market catalogue (independent of our wallets).
 
-        Used to discover markets in a category directly from Polymarket, so
-        we can find the specialists who trade them — including the small/mid
-        bettors the large-trade tape never surfaces.
+        Gamma caps a page at 100 rows regardless of the limit requested, so we
+        page in 100s and advance by what's actually returned — stopping only on
+        an empty/short page, never on "fewer than I asked for".
         """
-        for page in range(max_pages):
+        offset = 0
+        for _ in range(max_pages):
             batch = self._get(f"{GAMMA_API}/markets", {
                 "closed": "true" if closed else "false",
                 "limit": page_size,
-                "offset": page * page_size,
+                "offset": offset,
             })
             if not batch:
                 return
             yield from batch
             if len(batch) < page_size:
                 return
+            offset += len(batch)
 
     def iter_market_trades(self, condition_id, min_cash=0, page_size=500,
                            max_pages=40, taker_only=True):
