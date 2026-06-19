@@ -583,8 +583,16 @@ def cmd_specialists(con, cfg, args):
     specific category (esp. weather), and does tailing them pay out-of-sample?
 
     Scoring uses alpha/z (beat-the-odds), never raw win rate, and the tailing
-    test is walk-forward (decisions never see the future).
+    test is walk-forward (decisions never see the future). The specialist bar
+    can be cranked (--min-n/--min-z/--min-alpha) to test only the most extreme,
+    most-proven winners.
     """
+    if args.min_n is not None:
+        cfg.min_resolved = args.min_n
+    if args.min_z is not None:
+        cfg.min_z = args.min_z
+    if args.min_alpha is not None:
+        cfg.min_alpha = args.min_alpha
     rows = db.resolved_positions_with_meta(con, args.min_cash)
     if not rows:
         sys.exit("no resolved positions — run ingest/backfill then resolve first")
@@ -758,6 +766,12 @@ def main():
     p = sub.add_parser("specialists", help="per-category skill + tailing test")
     p.add_argument("--min-cash", type=float, default=Config().scoring_min_cash,
                    help="position floor for the analysis")
+    p.add_argument("--min-n", type=int, default=None,
+                   help="override: resolved bets required to count as a specialist")
+    p.add_argument("--min-z", type=float, default=None,
+                   help="override: significance bar (crank to 3+ for 'overwhelming')")
+    p.add_argument("--min-alpha", type=float, default=None,
+                   help="override: outperformance ratio bar")
     p.add_argument("--stake", type=float, default=100.0)
     p.add_argument("--out", default=None, help="also write results to a markdown file")
 
