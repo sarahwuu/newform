@@ -1,6 +1,6 @@
 # Paper-trading ledger (prospective, survivorship-free)
 
-_Updated 2026-06-28 10:40 UTC_
+_Updated 2026-06-29 09:41 UTC_
 
 ```
 graded record at $100/bet (NEWS is the category that matters; sports is watch-only/likely-fixing):
