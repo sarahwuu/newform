@@ -32,7 +32,7 @@ def _job_lines_md(jobs) -> str:
     )
 
 
-def send_email(jobs, drafts) -> bool:
+def send_email(jobs) -> bool:
     user, password = os.getenv("SMTP_USER"), os.getenv("SMTP_PASS")
     if not (user and password):
         return False
@@ -42,12 +42,8 @@ def send_email(jobs, drafts) -> bool:
 
     n = len(jobs)
     subject = f"🎯 {n} new design {'internship' if n == 1 else 'internships/roles'} just dropped"
-    repo = os.getenv("GITHUB_REPOSITORY", "")
-    drafts_note = (
-        f'<p>Tailored application drafts are in the <a href="https://github.com/{repo}/tree/main/drafts">drafts folder</a>.</p>'
-        if repo else "<p>Tailored application drafts are in the repo's <code>drafts/</code> folder.</p>"
-    )
-    html = f"<h2>New roles matching your search</h2>{_job_lines_html(jobs)}{drafts_note}<p>Apply fast — early applications get seen.</p>"
+    html = (f"<h2>New roles matching your search</h2>{_job_lines_html(jobs)}"
+            "<p>Apply fast — early applications get seen.</p>")
 
     msg = MIMEText(html, "html")
     msg["Subject"], msg["From"], msg["To"] = subject, user, to
@@ -66,7 +62,7 @@ def open_github_issue(jobs) -> bool:
     n = len(jobs)
     body = {
         "title": f"🎯 {n} new design {'role' if n == 1 else 'roles'} dropped",
-        "body": _job_lines_md(jobs) + "\n\nDrafts are in `drafts/`. Close this issue once you've applied.",
+        "body": _job_lines_md(jobs) + "\n\nClose this issue once you've browsed them.",
         "labels": ["job-alert"],
     }
     req = urllib.request.Request(
@@ -80,9 +76,9 @@ def open_github_issue(jobs) -> bool:
     return True
 
 
-def notify(jobs, drafts) -> None:
+def notify(jobs) -> None:
     try:
-        if send_email(jobs, drafts):
+        if send_email(jobs):
             return
     except Exception as e:
         print(f"  [warn] email failed: {type(e).__name__}: {e}")

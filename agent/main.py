@@ -1,16 +1,13 @@
-"""One scan cycle: fetch all sources -> filter -> dedupe -> draft -> notify."""
-import os
-
+"""One scan cycle: fetch all sources -> filter -> dedupe -> alert."""
 import yaml
 
-from . import filters, store, tailor
+from . import filters, store
 from .notify import notify
 from .sources import REGISTRY
 
 
 def run() -> None:
     cfg = yaml.safe_load(open("config.yaml"))
-    profile = tailor.load_profile()
     first_run = store.is_first_run()
     seen = store.load()
 
@@ -48,16 +45,9 @@ def run() -> None:
     print(f"\n{len(fresh)} new job(s) since last check")
 
     if fresh:
-        use_ai = bool(os.getenv("ANTHROPIC_API_KEY"))
-        max_drafts = cfg.get("alerts", {}).get("max_drafts_per_run", 5)
-        resume = tailor._resume_text() if use_ai else ""
-        drafts = []
-        for i, j in enumerate(fresh):
-            ai_this_one = use_ai and i < max_drafts
-            path = tailor.write_draft(j, profile, ai_this_one, resume)
-            drafts.append(path)
-            print(f"  drafted: {path}")
-        notify(fresh, drafts)
+        for j in fresh:
+            print(f"  - {j.title} @ {j.company} ({j.source}) {j.url}")
+        notify(fresh)
 
     seen.update(j.uid for j in all_jobs)
     store.save(seen)

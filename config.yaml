@@ -90,8 +90,6 @@ alerts:
   # On the very first run there's a backlog of hundreds of matches.
   # Only the newest N are alerted; the rest are marked seen silently.
   first_run_alert_limit: 25
-  # Max AI-tailored drafts generated per run (controls API cost).
-  max_drafts_per_run: 5
 
 # ── Sources ──────────────────────────────────────────────────────────
 sources:
