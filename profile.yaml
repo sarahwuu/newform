@@ -1,0 +1,31 @@
+# Your info — used to tailor application drafts.
+# Fill in the blanks; the more detail, the better the drafts.
+name: Sarah Wu
+email: sarahwu024@gmail.com
+phone: ""
+location: ""
+school: ""
+degree: ""            # e.g. B.S. Human-Computer Interaction
+graduation: May 2027
+portfolio: ""         # portfolio URL — critical for design applications
+linkedin: ""
+website: ""
+
+work_authorization: ""   # e.g. "US citizen", "F-1 (CPT/OPT eligible)"
+needs_sponsorship: ""    # yes / no
+
+target_roles:
+  - Product Design Intern
+  - UX/UI Design Intern
+  - UX Research Intern
+  - Product Designer (New Grad)
+
+# 2-4 sentences about you — tone and facts feed directly into drafts.
+summary: ""
+
+# Highlights the AI should draw from (projects, tools, wins). One per line.
+highlights:
+  - ""
+
+# Tools you're strong in, e.g. Figma, Framer, Protopie, After Effects
+tools: []
