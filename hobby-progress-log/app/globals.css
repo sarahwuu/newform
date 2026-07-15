@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #faf9f6;
+  --color-ink: #211f1c;
+  --color-faint: #a49e96;
+  --color-line: #e5e1da;
+}
+
+body {
+  font-weight: 400;
+}
+
+/* the compare scrubber — quiet track, generous thumb */
+input[type="range"].scrubber {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 44px;
+  background: transparent;
+  cursor: pointer;
+}
+.scrubber::-webkit-slider-runnable-track {
+  height: 2px;
+  background: var(--color-line);
+  border-radius: 1px;
+}
+.scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 26px;
+  width: 26px;
+  margin-top: -12px;
+  border-radius: 9999px;
+  background: var(--color-ink);
+  border: 5px solid var(--color-paper);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.18);
+}
+.scrubber::-moz-range-track {
+  height: 2px;
+  background: var(--color-line);
+  border-radius: 1px;
+}
+.scrubber::-moz-range-thumb {
+  height: 26px;
+  width: 26px;
+  border-radius: 9999px;
+  background: var(--color-ink);
+  border: 5px solid var(--color-paper);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.18);
+}
