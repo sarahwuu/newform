@@ -24,6 +24,7 @@ from .config import Config
 from .model import score_wallets
 from .rank import attach_live_prices, rank_bets
 from .report import build_html, build_markdown
+from .rules import scan_rules_gaps
 from .signals import generate
 
 
@@ -260,21 +261,35 @@ def cmd_hunt(con, cfg, args):
         (cfg.min_price, cfg.max_price, since, cfg.min_position_cash),
     ).fetchall()
 
+    def in_window(r):
+        """News markets resolve over weeks/months, so they get a wide close
+        window; sports resolve in days and are muted unless --include-sports.
+        The old 7-day window was sports-biased and filtered most news out."""
+        if r["end_ts"] is None:
+            return False
+        is_sports = classify_market(r["title"], r["event_slug"]) == "sports"
+        if is_sports and not args.include_sports:
+            return False
+        window = args.days_to_end if is_sports else args.news_days
+        return 0 <= r["end_ts"] - now <= window * day
+
     hits = [r for r in rows
             if r["ts"] - r["first_ts"] <= args.max_wallet_age * day
-            and r["end_ts"] is not None
-            and 0 <= r["end_ts"] - now <= args.days_to_end * day
+            and in_window(r)
             # Concentration: keep only burners that exist to make one bet.
             # A wallet sprayed across many markets is a volume/hedge bettor,
             # not insider conviction (see Aching-Frustration-Victim, 2026-06).
             and db.wallet_distinct_markets(con, r["wallet"]) <= args.max_markets]
     hits.sort(key=lambda r: -r["cash"])
     if not hits:
+        scope = ("news markets ending <= %dd" % args.news_days
+                 + (f" + sports <= {args.days_to_end}d" if args.include_sports
+                    else " (sports muted)"))
         print(f"no live signature hits (fresh wallet <= {args.max_wallet_age}d, "
               f"<= {args.max_markets} markets, "
               f"position >= ${cfg.min_position_cash:,.0f} at "
-              f"{cfg.min_price:.2f}-{cfg.max_price:.2f}, "
-              f"market ends <= {args.days_to_end}d) — re-run after the next ingest")
+              f"{cfg.min_price:.2f}-{cfg.max_price:.2f}, {scope}) "
+              f"— re-run after the next ingest")
         return
 
     prices = {}
@@ -530,6 +545,39 @@ def cmd_signals(con, cfg, args):
             print(f"  {url}")
 
 
+def cmd_rulescan(con, cfg, args):
+    """Scan OPEN markets for rules-gaps: places where the resolution text
+    likely diverges from the naive reading of the title.
+
+    This is a research screener for making YOUR OWN read — the one edge class
+    the whale investigation left standing. It never says which side to bet;
+    it says where reading the fine print might beat the casuals.
+    """
+    client = PolymarketClient()
+    print(f"scanning open markets (up to {args.pages} pages of 100)...")
+    markets = list(client.iter_markets(closed=False, max_pages=args.pages))
+    findings = scan_rules_gaps(markets)
+    findings = [f for f in findings if f["volume"] >= args.min_volume]
+    if args.gap:
+        findings = [f for f in findings
+                    if any(name == args.gap for name, _ in f["gaps"])]
+    print(f"{len(markets)} open markets scanned, "
+          f"{len(findings)} flagged (volume >= ${args.min_volume:,.0f})\n")
+    for f in findings[:args.top]:
+        yes = f"YES {f['yes_price']:.2f}" if f["yes_price"] is not None else "price n/a"
+        classes = ", ".join(name for name, _ in f["gaps"])
+        print(f"[{classes}] {f['question']}  ({yes} | vol ${f['volume']:,.0f})")
+        print(f"    rule: \"{f['snippet']}\"")
+        for _, why in f["gaps"][:2]:
+            print(f"    why it matters: {why}")
+        if f["slug"]:
+            print(f"    https://polymarket.com/market/{f['slug']}")
+        print()
+    if findings[args.top:]:
+        print(f"(+{len(findings) - args.top} more — raise --top or filter "
+              f"with --gap CLASS / --min-volume N)")
+
+
 def cmd_seed(con, cfg, args):
     """Discover a category's markets directly from Polymarket and pull their
     full trader rosters — breaking the longshot sampling bias so `specialists`
@@ -713,7 +761,11 @@ def main():
     p.add_argument("--max-wallet-age", type=float, default=7.0,
                    help="wallet age in days at entry to count as fresh")
     p.add_argument("--days-to-end", type=float, default=7.0,
-                   help="market must end within this many days")
+                   help="sports close window in days (sports muted unless --include-sports)")
+    p.add_argument("--news-days", type=float, default=30.0,
+                   help="news/non-sports close window in days (news resolves slower)")
+    p.add_argument("--include-sports", action="store_true",
+                   help="also alert on sports (off by default — news-focused watcher)")
     p.add_argument("--max-markets", type=int, default=Config().burner_max_markets,
                    help="max distinct markets the wallet may have bet on (concentration)")
 
@@ -754,6 +806,16 @@ def main():
     p.add_argument("--all-prices", action="store_true",
                    help="copy qualified whales at all prices, not just longshots")
 
+    p = sub.add_parser("rulescan", help="find rules-gaps in open markets (your-own-edge screener)")
+    p.add_argument("--pages", type=int, default=20,
+                   help="open-market catalogue pages to scan (100 each)")
+    p.add_argument("--top", type=int, default=20)
+    p.add_argument("--min-volume", type=float, default=25_000.0,
+                   help="ignore markets below this volume (dead books)")
+    p.add_argument("--gap", default=None,
+                   help="only show one class: regulation-time, data-threshold, "
+                        "named-source, official-definition, compound-conditions")
+
     p = sub.add_parser("seed", help="pull a category's markets + traders directly")
     p.add_argument("--category", default="weather",
                    help="category to seed (weather, politics, crypto, economy, ...)")
@@ -791,7 +853,7 @@ def main():
      "stats": cmd_stats, "patterns": cmd_patterns, "hunt": cmd_hunt,
      "ledger": cmd_ledger, "rank": cmd_rank, "ev": cmd_ev,
      "report": cmd_report, "score": cmd_score, "signals": cmd_signals,
-     "backtest": cmd_backtest, "seed": cmd_seed,
+     "backtest": cmd_backtest, "seed": cmd_seed, "rulescan": cmd_rulescan,
      "specialists": cmd_specialists}[args.command](con, cfg, args)
 
 
