@@ -1,6 +1,6 @@
 # Paper-trading ledger (prospective, survivorship-free)
 
-_Updated 2026-07-25 09:28 UTC_
+_Updated 2026-07-29 09:40 UTC_
 
 ```
 graded record at $100/bet (NEWS is the category that matters; sports is watch-only/likely-fixing):
@@ -19,6 +19,7 @@ graded record at $100/bet (NEWS is the category that matters; sports is watch-on
   lost Spread: England (-1.5)  ->  England @ 0.15
   lost Will Argentina win the 2026 FIFA World Cup?  ->  Yes @ 0.19
 
-open: 1 bets awaiting resolution
+open: 2 bets awaiting resolution
   2026-07-21 04:29  Will the Fed increase interest rates by 25 bps after the July 2026 meeting?  ->  Yes @ 0.07 (whale $15,494)
+  2026-07-27 10:56  Will the Fed increase interest rates by 25 bps after the July 2026 meeting?  ->  Yes @ 0.19 (whale $12,000)
 ```
