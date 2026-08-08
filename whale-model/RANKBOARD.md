@@ -1,17 +1,15 @@
 # 🐋 Whale Rank Board — Top 10
 
-_Updated 2026-08-06 10:12 UTC · criteria: whale positions ≥ $10,000 entered at 0.02–0.20 · lookback 14d · ranked by total whale notional_
+_Updated 2026-08-08 09:27 UTC · criteria: whale positions ≥ $10,000 entered at 0.02–0.20 · lookback 14d · ranked by total whale notional_
 
 | # | Bet | Whale $ | Whales | Smart $ | Entry | Now | Patterns |
 |--:|-----|--------:|-------:|--------:|------:|----:|----------|
-| 1 | [Strait of Hormuz traffic returns to normal by August 31? — **Yes**](https://polymarket.com/event/strait-of-hormuz-traffic-returns-to-normal-by-august-31-20260702154212320) | $196,696 | 8 | $0 | 0.13 | 0.15 (+0.02) | ends 24.6d |
-| 2 | [Will the U.S. invade Iran before 2027? — **Yes**](https://polymarket.com/event/will-the-us-invade-iran-before-2027) | $69,379 | 1 | $0 | 0.18 | 0.15 (-0.03) | ends 146.6d |
-| 3 | [Will San Antonio Spurs win the 2027 NBA Finals? — **Yes**](https://polymarket.com/event/nba-2027-champion) | $24,793 | 1 | $0 | 0.19 | 0.20 (+0.01) | ends 328.6d |
-| 4 | [Will Boston Celtics win the 2027 NBA Finals? — **Yes**](https://polymarket.com/event/nba-2027-champion) | $16,740 | 1 | $0 | 0.05 | 0.04 (-0.01) | ends 328.6d |
-| 5 | [UFC Fight Night: Wellington Turman vs. Islam Dulatov (Welterweight, Main Card) — **Wellington Turman**](https://polymarket.com/event/ufc-wel-isl2-2026-07-25) | $15,646 | 1 | $0 | 0.13 | 0.50 (+0.37) | past scheduled end |
-| 6 | [Will no Fed rate cuts happen in 2026? — **No**](https://polymarket.com/event/how-many-fed-rate-cuts-in-2026) | $14,000 | 1 | $0 | 0.18 | 0.12 (-0.05) | ends 146.6d |
-| 7 | [Will Bitcoin dip to $40,000 by December 31, 2026? — **Yes**](https://polymarket.com/event/what-price-will-bitcoin-hit-before-2027) | $12,000 | 1 | $0 | 0.17 | 0.15 (-0.01) | ends 147.8d |
-| 8 | [Will New York Knicks win the 2027 NBA Finals? — **Yes**](https://polymarket.com/event/nba-2027-champion) | $11,683 | 1 | $0 | 0.08 | 0.09 (+0.01) | ends 328.6d |
+| 1 | [Strait of Hormuz traffic returns to normal by August 31? — **Yes**](https://polymarket.com/event/strait-of-hormuz-traffic-returns-to-normal-by-august-31-20260702154212320) | $234,572 | 8 | $0 | 0.14 | 0.12 (-0.01) | ends 22.6d |
+| 2 | [Will the U.S. invade Iran before 2027? — **Yes**](https://polymarket.com/event/will-the-us-invade-iran-before-2027) | $95,709 | 2 | $0 | 0.19 | 0.17 (-0.02) | ends 144.6d |
+| 3 | [Will Boston Celtics win the 2027 NBA Finals? — **Yes**](https://polymarket.com/event/nba-2027-champion) | $16,740 | 1 | $0 | 0.05 | 0.04 (-0.01) | ends 326.6d |
+| 4 | [UFC Fight Night: Wellington Turman vs. Islam Dulatov (Welterweight, Main Card) — **Wellington Turman**](https://polymarket.com/event/ufc-wel-isl2-2026-07-25) | $15,646 | 1 | $0 | 0.13 | 0.50 (+0.37) | past scheduled end |
+| 5 | [Will no Fed rate cuts happen in 2026? — **No**](https://polymarket.com/event/how-many-fed-rate-cuts-in-2026) | $14,000 | 1 | $0 | 0.18 | 0.14 (-0.03) | ends 144.6d |
+| 6 | [Will the Iranian regime fall before 2027? — **Yes**](https://polymarket.com/event/will-the-iranian-regime-fall-by-the-end-of-2026) | $13,446 | 1 | $0 | 0.07 | 0.07 (-0.01) | ends 144.6d |
 
 ## Best EV right now
 
