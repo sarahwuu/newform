@@ -1,6 +1,6 @@
 # Paper-trading ledger (prospective, survivorship-free)
 
-_Updated 2026-08-09 10:01 UTC_
+_Updated 2026-08-10 09:57 UTC_
 
 ```
 graded record at $100/bet (NEWS is the category that matters; sports is watch-only/likely-fixing):
@@ -19,6 +19,7 @@ graded record at $100/bet (NEWS is the category that matters; sports is watch-on
   lost Will the Fed increase interest rates by 25 bps after the July 2026 meeting?  ->  Yes @ 0.07
   lost Will the Fed increase interest rates by 25 bps after the July 2026 meeting?  ->  Yes @ 0.19
 
-open: 1 bets awaiting resolution
+open: 2 bets awaiting resolution
   2026-08-01 00:10  Strait of Hormuz traffic returns to normal by August 31?  ->  Yes @ 0.07 (whale $14,714)
+  2026-08-10 06:21  Will Kai and Speed beat the Minecraft challenge by August 17?  ->  Yes @ 0.14 (whale $15,684)
 ```
