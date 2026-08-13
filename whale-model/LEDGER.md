@@ -1,14 +1,13 @@
 # Paper-trading ledger (prospective, survivorship-free)
 
-_Updated 2026-08-12 09:48 UTC_
+_Updated 2026-08-13 09:51 UTC_
 
 ```
 graded record at $100/bet (NEWS is the category that matters; sports is watch-only/likely-fixing):
-  ALL       39 bets | wins 8 vs 5.9 implied | alpha 1.24 | z 0.97 | ROI +47%
-  NEWS       3 bets | wins 0 vs 0.3 implied | alpha 0.91 | z -0.61 | ROI -100%
+  ALL       40 bets | wins 9 vs 6.0 implied | alpha 1.33 | z 1.34 | ROI +60%
+  NEWS       4 bets | wins 1 vs 0.5 implied | alpha 1.16 | z 0.86 | ROI +72%
   sports    36 bets | wins 8 vs 5.5 implied | alpha 1.29 | z 1.15 | ROI +59%
 
-  lost Will Argentina win the 2026 FIFA World Cup?  ->  Yes @ 0.18
   lost Will England win the 2026 FIFA World Cup?  ->  Yes @ 0.22
   lost Will England win the 2026 FIFA World Cup?  ->  Yes @ 0.22
   WON  Will Spain win the 2026 FIFA World Cup?  ->  Yes @ 0.21
@@ -18,8 +17,8 @@ graded record at $100/bet (NEWS is the category that matters; sports is watch-on
   lost Will Argentina win the 2026 FIFA World Cup?  ->  Yes @ 0.19
   lost Will the Fed increase interest rates by 25 bps after the July 2026 meeting?  ->  Yes @ 0.07
   lost Will the Fed increase interest rates by 25 bps after the July 2026 meeting?  ->  Yes @ 0.19
+  WON  Will Kai and Speed beat the Minecraft challenge by August 17?  ->  Yes @ 0.14
 
-open: 2 bets awaiting resolution
+open: 1 bets awaiting resolution
   2026-08-01 00:10  Strait of Hormuz traffic returns to normal by August 31?  ->  Yes @ 0.07 (whale $14,714)
-  2026-08-10 06:21  Will Kai and Speed beat the Minecraft challenge by August 17?  ->  Yes @ 0.14 (whale $15,684)
 ```
