@@ -1,13 +1,14 @@
 # 🐋 Whale Rank Board — Top 10
 
-_Updated 2026-08-13 09:51 UTC · criteria: whale positions ≥ $10,000 entered at 0.02–0.20 · lookback 14d · ranked by total whale notional_
+_Updated 2026-08-14 09:29 UTC · criteria: whale positions ≥ $10,000 entered at 0.02–0.20 · lookback 14d · ranked by total whale notional_
 
 | # | Bet | Whale $ | Whales | Smart $ | Entry | Now | Patterns |
 |--:|-----|--------:|-------:|--------:|------:|----:|----------|
-| 1 | [Strait of Hormuz traffic returns to normal by August 31? — **Yes**](https://polymarket.com/event/strait-of-hormuz-traffic-returns-to-normal-by-august-31-20260702154212320) | $180,875 | 7 | $0 | 0.13 | 0.03 (-0.11) | ends 17.6d |
-| 2 | [Will the U.S. invade Iran before 2027? — **Yes**](https://polymarket.com/event/will-the-us-invade-iran-before-2027) | $145,949 | 4 | $27,999 | 0.18 | 0.17 (-0.01) | ends 139.6d |
-| 3 | [Will the Iranian regime fall before 2027? — **Yes**](https://polymarket.com/event/will-the-iranian-regime-fall-by-the-end-of-2026) | $23,946 | 1 | $0 | 0.07 | 0.07 (-0.01) | ends 139.6d |
-| 4 | [Strait of Hormuz traffic returns to normal by September 30? — **Yes**](https://polymarket.com/event/strait-of-hormuz-traffic-returns-to-normal-by-september-30-20260702154339440) | $21,178 | 1 | $0 | 0.17 | 0.15 (-0.01) | ends 47.6d |
+| 1 | [Strait of Hormuz traffic returns to normal by August 31? — **Yes**](https://polymarket.com/event/strait-of-hormuz-traffic-returns-to-normal-by-august-31-20260702154212320) | $158,529 | 6 | $0 | 0.14 | 0.02 (-0.12) | ends 16.6d |
+| 2 | [Will the U.S. invade Iran before 2027? — **Yes**](https://polymarket.com/event/will-the-us-invade-iran-before-2027) | $145,949 | 4 | $27,999 | 0.18 | 0.17 (-0.01) | ends 138.6d |
+| 3 | [Will the Iranian regime fall before 2027? — **Yes**](https://polymarket.com/event/will-the-iranian-regime-fall-by-the-end-of-2026) | $23,946 | 1 | $0 | 0.07 | 0.07 (-0.01) | ends 138.6d |
+| 4 | [Strait of Hormuz traffic returns to normal by September 30? — **Yes**](https://polymarket.com/event/strait-of-hormuz-traffic-returns-to-normal-by-september-30-20260702154339440) | $19,067 | 1 | $0 | 0.16 | 0.14 (-0.02) | ends 46.6d |
+| 5 | [Will Marco Rubio win the 2028 US Presidential Election? — **Yes**](https://polymarket.com/event/presidential-election-winner-2028) | $15,844 | 1 | $0 | 0.13 | 0.13 (+0.00) | ends 815.6d · 100% in last 24h |
 
 ## Best EV right now
 
