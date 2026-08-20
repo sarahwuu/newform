@@ -1,6 +1,6 @@
 # 🐋 Whale Rank Board — Top 10
 
-_Updated 2026-08-20 09:36 UTC · criteria: whale positions ≥ $10,000 entered at 0.02–0.20 · lookback 14d · ranked by total whale notional_
+_Updated 2026-08-20 10:41 UTC · criteria: whale positions ≥ $10,000 entered at 0.02–0.20 · lookback 14d · ranked by total whale notional_
 
 | # | Bet | Whale $ | Whales | Smart $ | Entry | Now | Patterns |
 |--:|-----|--------:|-------:|--------:|------:|----:|----------|
@@ -13,7 +13,7 @@ _Updated 2026-08-20 09:36 UTC · criteria: whale positions ≥ $10,000 entered a
 | 7 | [Will Marco Rubio win the 2028 US Presidential Election? — **Yes**](https://polymarket.com/event/presidential-election-winner-2028) | $15,844 | 1 | $0 | 0.13 | 0.12 (-0.01) | ends 809.6d |
 | 8 | [Will Arsenal win the 2026-27 UEFA Champions League Championship? — **Yes**](https://polymarket.com/event/uefa-champions-league-2027-champion-20260701202025549) | $13,095 | 1 | $0 | 0.13 | 0.14 (+0.01) | ends 283.6d |
 | 9 | [Will Anthropic's valuation hit (HIGH) $4.0T by December 31? — **Yes**](https://polymarket.com/event/will-anthropics-valuation-hit-by-december-31) | $11,691 | 1 | $0 | 0.10 | 0.10 (+0.01) | ends 134.1d |
-| 10 | [Dota 2: TEAM VISION vs BoomBoys - Game 2 Winner — **TEAM VISION**](https://polymarket.com/event/dota2-vsn2-boombo-2026-08-20) | $10,577 | 1 | $0 | 0.19 | 0.00 (-0.19) | ends 0.1d · 100% in last 24h |
+| 10 | [Dota 2: TEAM VISION vs BoomBoys - Game 2 Winner — **TEAM VISION**](https://polymarket.com/event/dota2-vsn2-boombo-2026-08-20) | $10,577 | 1 | $0 | 0.19 | 0.00 (-0.19) | ends 0.0d · 100% in last 24h |
 
 ## Best EV right now
 
