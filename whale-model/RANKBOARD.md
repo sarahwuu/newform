@@ -1,11 +1,11 @@
 # 🐋 Whale Rank Board — Top 10
 
-_Updated 2026-08-22 09:16 UTC · criteria: whale positions ≥ $10,000 entered at 0.02–0.20 · lookback 14d · ranked by total whale notional_
+_Updated 2026-08-22 10:01 UTC · criteria: whale positions ≥ $10,000 entered at 0.02–0.20 · lookback 14d · ranked by total whale notional_
 
 | # | Bet | Whale $ | Whales | Smart $ | Entry | Now | Patterns |
 |--:|-----|--------:|-------:|--------:|------:|----:|----------|
 | 1 | [Will the U.S. invade Iran before 2027? — **Yes**](https://polymarket.com/event/will-the-us-invade-iran-before-2027) | $58,773 | 2 | $18,999 | 0.18 | 0.17 (-0.01) | ends 130.6d |
-| 2 | [Strait of Hormuz traffic returns to normal by September 30? — **Yes**](https://polymarket.com/event/strait-of-hormuz-traffic-returns-to-normal-by-september-30-20260702154339440) | $35,691 | 2 | $0 | 0.14 | 0.06 (-0.08) | ends 38.6d |
+| 2 | [Strait of Hormuz traffic returns to normal by September 30? — **Yes**](https://polymarket.com/event/strait-of-hormuz-traffic-returns-to-normal-by-september-30-20260702154339440) | $35,691 | 2 | $0 | 0.14 | 0.04 (-0.09) | ends 38.6d |
 | 3 | [Will Anthropic's valuation hit (HIGH) $4.0T by December 31? — **Yes**](https://polymarket.com/event/will-anthropics-valuation-hit-by-december-31) | $24,778 | 1 | $0 | 0.11 | 0.10 (-0.01) | ends 132.1d |
 | 4 | [Will Barcelona win the 2026-27 UEFA Champions League Championship? — **Yes**](https://polymarket.com/event/uefa-champions-league-2027-champion-20260701202025549) | $22,507 | 1 | $0 | 0.16 | 0.17 (+0.01) | ends 281.6d |
 | 5 | [Will Wes Moore win the 2028 Democratic presidential nomination? — **Yes**](https://polymarket.com/event/democratic-presidential-nominee-2028) | $19,863 | 1 | $0 | 0.10 | 0.01 (-0.08) | ends 807.6d |
