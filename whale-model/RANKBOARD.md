@@ -1,6 +1,6 @@
 # 🐋 Whale Rank Board — Top 10
 
-_Updated 2026-08-23 09:35 UTC · criteria: whale positions ≥ $10,000 entered at 0.02–0.20 · lookback 14d · ranked by total whale notional_
+_Updated 2026-08-23 10:01 UTC · criteria: whale positions ≥ $10,000 entered at 0.02–0.20 · lookback 14d · ranked by total whale notional_
 
 | # | Bet | Whale $ | Whales | Smart $ | Entry | Now | Patterns |
 |--:|-----|--------:|-------:|--------:|------:|----:|----------|
