@@ -1,6 +1,6 @@
 # Paper-trading ledger (prospective, survivorship-free)
 
-_Updated 2026-10-18 09:40 UTC_
+_Updated 2026-10-23 15:12 UTC_
 
 ```
 graded record at $100/bet (NEWS is the category that matters; sports is watch-only/likely-fixing):
@@ -19,9 +19,10 @@ graded record at $100/bet (NEWS is the category that matters; sports is watch-on
   lost Will New People (NL) gain the most seats in the next Russian parliamentary election?  ->  Yes @ 0.18
   lost Will United Russia (ER) gain the most seats in the next Russian parliamentary election?  ->  No @ 0.02
 
-open: 4 bets awaiting resolution
+open: 5 bets awaiting resolution
   2026-10-05 05:33  2026 Balance of Power: R Senate, R House  ->  Yes @ 0.07 (whale $78,058)
   2026-10-05 05:33  Will the Republican Party control the House after the 2026 Midterm elections?  ->  Yes @ 0.07 (whale $11,001)
   2026-10-08 07:41  2026 Balance of Power: R Senate, R House  ->  Yes @ 0.09 (whale $16,312)
   2026-10-16 15:25  2026 Balance of Power: R Senate, R House  ->  Yes @ 0.10 (whale $17,622)
+  2026-10-21 01:47  2026 Balance of Power: R Senate, R House  ->  Yes @ 0.09 (whale $50,000)
 ```
